@@ -1,2 +1,2 @@
-# ai-image-and-art-detector
+# ai-art-detector
 
