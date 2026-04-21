@@ -1,0 +1,16 @@
+decision_threshold: 0.5
+threshold_metric: f1
+save_curves: true
+save_error_analysis: true
+calibration_method: temperature_scaling
+calibration_enabled: true
+tune_threshold_on: val
+threshold_search_min: 0.05
+threshold_search_max: 0.95
+threshold_search_steps: 37
+save_predictions_csv: true
+top_k_errors: 24
+calibration_temperature_min: 0.5
+calibration_temperature_max: 5.0
+calibration_temperature_steps: 46
+reliability_bins: 10

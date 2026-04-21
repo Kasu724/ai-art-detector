@@ -1,0 +1,16 @@
+project:
+  name: ai-art-detector
+  experiment_name: improved_efficientnet_b0
+  description: >
+    Stronger variant with a larger backbone, stronger augmentations,
+    threshold tuning, and calibration-aware evaluation.
+
+defaults:
+  data: improved
+  model: improved
+  train: improved
+  eval: default
+  runtime: default
+
+notes: >
+  Intended as the first comparison experiment against the resnet18 baseline.

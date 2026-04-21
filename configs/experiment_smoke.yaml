@@ -1,0 +1,16 @@
+project:
+  name: ai-art-detector
+  experiment_name: smoke_tiny_cnn
+  description: >
+    CPU-friendly smoke configuration for pipeline checks and CI-style testing.
+
+defaults:
+  data: default
+  model: smoke
+  train: smoke
+  eval: default
+  runtime: default
+
+notes: >
+  Uses a tiny custom model and no pretrained weights. This is not the research
+  baseline and should not be used for real reporting.

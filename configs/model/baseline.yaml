@@ -1,0 +1,10 @@
+name: resnet18
+family: torchvision
+pretrained: true
+weights: IMAGENET1K_V1
+num_classes: 1
+input_size: 224
+dropout: 0.2
+freeze_backbone: false
+checkpoint_path: null
+onnx_path: null

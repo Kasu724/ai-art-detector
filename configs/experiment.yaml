@@ -1,0 +1,17 @@
+project:
+  name: ai-art-detector
+  experiment_name: baseline_transfer_learning
+  description: >
+    Research-style AI art detector with reproducible data preparation,
+    training, evaluation, and deployment workflows.
+
+defaults:
+  data: default
+  model: baseline
+  train: baseline
+  eval: default
+  runtime: default
+
+notes: >
+  Phase 1 establishes project structure, config composition, artifact layout,
+  and the manifest-driven dataset preparation pipeline.

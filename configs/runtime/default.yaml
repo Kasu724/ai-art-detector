@@ -1,0 +1,8 @@
+seed: 42
+device: auto
+outputs_dir: artifacts
+log_level: INFO
+save_resolved_config: true
+deterministic: true
+num_threads: null
+run_name_suffix: ""
