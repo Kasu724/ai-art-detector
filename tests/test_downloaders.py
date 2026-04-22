@@ -5,7 +5,11 @@ from pathlib import Path
 
 from PIL import Image
 
-from ai_art_detector.data.downloaders import download_anime_social_dataset, download_real_art_dataset
+from ai_art_detector.data.downloaders import (
+    download_anime_fanart_dataset,
+    download_anime_social_dataset,
+    download_real_art_dataset,
+)
 
 
 class _DummyLabelFeature:
@@ -74,3 +78,41 @@ def test_download_anime_social_dataset_writes_balanced_sources(monkeypatch, tmp_
     assert result["source_counts"]["open_niji_65001_100000"] == 2
     assert (output_dir / "sayurio_anime_art" / "human" / "sayurio_anime_art_000000.png").exists()
     assert (output_dir / "open_niji_0_32237" / "ai" / "open_niji_0_32237_000000.png").exists()
+
+
+def test_download_anime_fanart_dataset_uses_curated_human_source(monkeypatch, tmp_path: Path) -> None:
+    def fake_load_dataset(dataset_id: str, streaming: bool = False):
+        assert streaming is True
+        if dataset_id == "ShinoharaHare/Danbooru-2024-Filtered-1M":
+            class _DanbooruSplit:
+                def __iter__(self):
+                    base = {
+                        "rating": "s",
+                        "artist_tags": ["artist_name"],
+                        "character_tags": ["miku"],
+                        "copyright_tags": ["vocaloid"],
+                        "tags": ["1girl"],
+                        "general_tags": ["solo"],
+                        "meta_tags": ["highres"],
+                        "safe_check_score": {"label": ["polluted", "safe"], "score": [0.05, 0.95]},
+                        "completeness_score": {"label": ["polished", "rough", "monochrome"], "score": [0.97, 0.02, 0.01]},
+                        "aesthetic_score": 6.5,
+                    }
+                    for _ in range(4):
+                        yield {"image": Image.new("RGB", (8, 8), color=(255, 0, 0)), **base}
+
+            return {"train": _DanbooruSplit()}
+        return {"train": _DummyImageSplit()}
+
+    monkeypatch.setattr(
+        "ai_art_detector.data.downloaders._require_datasets",
+        lambda: fake_load_dataset,
+    )
+
+    output_dir = tmp_path / "raw" / "anime_fanart_filter_v2"
+    result = download_anime_fanart_dataset(output_dir=output_dir, human_limit=2, ai_limit=4)
+
+    assert result["num_downloaded"] == 6
+    assert result["label_counts"] == {"human": 2, "ai": 4}
+    assert result["source_counts"]["danbooru_fanart"] == 2
+    assert (output_dir / "danbooru_fanart" / "human" / "danbooru_fanart_000000.png").exists()

@@ -77,6 +77,7 @@ The repository ships baseline, comparison, and smoke configs:
 | Real baseline | `configs/experiment_real_art_hf.yaml` | Baseline on the public Hugging Face art dataset | `resnet18` |
 | Real comparison | `configs/experiment_real_art_hf_improved.yaml` | Same-dataset comparison run with stronger augmentation | `efficientnet_b0` |
 | Anime moderation | `configs/experiment_anime_social_transfer.yaml` | Warm-started fine-tune for anime/cartoon-style moderation | `efficientnet_b0` |
+| Fanart moderation v2 | `configs/experiment_anime_fanart_v2_transfer.yaml` | Second-stage fine-tune for polished human fanart vs AI anime | `efficientnet_b0` |
 | Smoke | `configs/experiment_smoke.yaml` | Fast CPU-only pipeline verification | `tiny_cnn` |
 
 ### Baseline experiment
@@ -346,6 +347,36 @@ python -m ai_art_detector.cli train --config configs/experiment_anime_social_tra
 python -m ai_art_detector.cli evaluate --config configs/experiment_anime_social_transfer.yaml --checkpoint artifacts/training/<run>/checkpoints/best.pt
 ```
 
+## Fanart Moderation Workflow
+
+This workflow is a tighter proxy for polished Twitter-style anime art and fanart.
+
+### Built-in human curation logic
+
+Human examples are streamed from `ShinoharaHare/Danbooru-2024-Filtered-1M` and filtered to keep:
+
+- ratings `g` or `s`
+- artist-tagged posts
+- posts with character or copyright tags
+- safe score >= `0.8`
+- polished score >= `0.85`
+- aesthetic score >= `5.0`
+- no `ai-generated` or `ai-assisted` tag
+
+### Download the curated fanart dataset
+
+```bash
+python -m ai_art_detector.cli download-anime-fanart-dataset --output-dir data/raw/anime_fanart_filter_v2 --human-limit 3000 --ai-limit 3000
+```
+
+### Prepare, train, and evaluate
+
+```bash
+python -m ai_art_detector.cli prepare-data --config configs/experiment_anime_fanart_v2_transfer.yaml
+python -m ai_art_detector.cli train --config configs/experiment_anime_fanart_v2_transfer.yaml
+python -m ai_art_detector.cli evaluate --config configs/experiment_anime_fanart_v2_transfer.yaml --checkpoint artifacts/training/<run>/checkpoints/best.pt
+```
+
 ## Training Details
 
 ### Model support
@@ -580,6 +611,33 @@ Operational threshold sweep for the anime fine-tune on the held-out test split:
 
 The anime fine-tune reduced the generic model's false positives on stylized art substantially, but the hardest remaining human false positives still cluster in the `sayurio_anime_art` source. That is a good reminder that illustration-heavy human art can still sit very close to modern anime generators in feature space.
 
+### Fanart-focused v2 fine-tune
+
+To better match polished social-media fanart, the repo was then extended with a curated fanart proxy:
+
+- Human source: filtered `ShinoharaHare/Danbooru-2024-Filtered-1M`
+- AI sources: `ShoukanLabs/OpenNiji-0_32237`, `ShoukanLabs/OpenNiji-65001_100000`
+- Size: 6,000 images
+- Split: 4,200 train / 900 val / 900 test
+
+On the held-out fanart-style test split:
+
+| Experiment | Accuracy | Precision | Recall | F1 | ROC-AUC | ECE | Threshold |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Prior anime model on fanart split | 0.7478 | 0.7451 | 0.7533 | 0.7492 | 0.8057 | 0.3518 | 0.850 |
+| Fanart-focused v2 model | 0.9400 | 0.9400 | 0.9400 | 0.9400 | 0.9848 | 0.0498 | 0.750 |
+
+The key moderation improvement is false positives on real fanart:
+
+- Prior anime model: `116 / 450` human fanart samples falsely flagged as AI
+- Fanart-focused v2 model: `27 / 450`
+
+Suggested operating points on the held-out fanart split:
+
+- `0.5`: precision `0.8966`, recall `0.9822`
+- `0.7`: precision `0.9342`, recall `0.9467`
+- tuned `0.75`: precision `0.9400`, recall `0.9400`
+
 The repo also ships:
 - a baseline experiment config
 - an improved experiment config
@@ -613,6 +671,7 @@ Current tests cover:
 ```bash
 make download-real-data
 make download-anime-data
+make download-anime-fanart-data
 make smoke-data
 make prepare-data CONFIG=configs/experiment.yaml
 make train CONFIG=configs/experiment.yaml

@@ -1,0 +1,20 @@
+project:
+  name: ai-art-detector
+  experiment_name: anime_fanart_v2_transfer_efficientnet_b0
+  description: >
+    Fanart-focused moderation detector tuned for polished human anime artwork
+    and fanart-style social posts.
+
+defaults:
+  data: anime_fanart_v2
+  model: improved
+  train: anime_fanart_v2_transfer
+  eval: default
+  runtime: default
+
+model:
+  checkpoint_path: artifacts/training/20260422_011025_anime_social_transfer_efficientnet_b0/checkpoints/best.pt
+
+notes: >
+  Second-stage fine-tune from the anime moderation model onto a curated human
+  fanart proxy built from filtered Danbooru-style metadata and modern AI anime.

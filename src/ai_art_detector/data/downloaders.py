@@ -50,6 +50,8 @@ ANIME_SOCIAL_SOURCES = {
     ],
 }
 
+AI_TAG_EXCLUSIONS = {"ai-generated", "ai-assisted"}
+
 
 @dataclass(slots=True)
 class DownloadResult:
@@ -99,6 +101,36 @@ def _save_rgb_image(image: Any, output_path: Path) -> None:
     image.convert("RGB").save(output_path)
 
 
+def _classification_score(payload: dict[str, Any] | None, label: str) -> float:
+    if not payload:
+        return 0.0
+    labels = payload.get("label") or []
+    scores = payload.get("score") or []
+    for candidate, score in zip(labels, scores):
+        if candidate == label:
+            return float(score)
+    return 0.0
+
+
+def _is_danbooru_fanart_row(row: dict[str, Any]) -> bool:
+    if str(row.get("rating", "")).lower() not in {"g", "s"}:
+        return False
+    if not row.get("artist_tags"):
+        return False
+    if not row.get("copyright_tags") and not row.get("character_tags"):
+        return False
+    all_tags = set(row.get("tags") or []) | set(row.get("general_tags") or []) | set(row.get("meta_tags") or [])
+    if AI_TAG_EXCLUSIONS & all_tags:
+        return False
+    if _classification_score(row.get("safe_check_score"), "safe") < 0.8:
+        return False
+    if _classification_score(row.get("completeness_score"), "polished") < 0.85:
+        return False
+    if float(row.get("aesthetic_score") or 0.0) < 5.0:
+        return False
+    return True
+
+
 def _download_streaming_source(
     *,
     load_dataset,
@@ -109,6 +141,7 @@ def _download_streaming_source(
     source_name: str,
     label_name: str,
     quota: int,
+    row_filter=None,
 ) -> int:
     if quota <= 0:
         return 0
@@ -120,6 +153,8 @@ def _download_streaming_source(
     label_dir = output_dir / source_name / label_name
     written = 0
     for row in dataset[split]:
+        if row_filter is not None and not row_filter(row):
+            continue
         image = row.get(image_key)
         if image is None:
             continue
@@ -228,6 +263,82 @@ def download_anime_social_dataset(
         "num_downloaded": label_counts["human"] + label_counts["ai"],
         "label_counts": label_counts,
         "source_counts": source_counts,
+    }
+    write_json(result, summary_path)
+    return result
+
+
+def download_anime_fanart_dataset(
+    output_dir: str | Path,
+    human_limit: int = 3000,
+    ai_limit: int = 3000,
+) -> dict[str, Any]:
+    load_dataset = _require_datasets()
+    output_dir = resolve_path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    summary_path = output_dir.parent / f"{output_dir.name}_download_summary.json"
+
+    source_counts: dict[str, int] = {}
+    label_counts = {"human": 0, "ai": 0}
+
+    human_sources = [
+        {
+            "dataset_id": "ShinoharaHare/Danbooru-2024-Filtered-1M",
+            "source_name": "danbooru_fanart",
+            "split": "train",
+            "image_key": "image",
+            "row_filter": _is_danbooru_fanart_row,
+        }
+    ]
+    ai_sources = ANIME_SOCIAL_SOURCES["ai"]
+
+    for index, spec in enumerate(human_sources):
+        quota = _split_quota(human_limit, len(human_sources), index)
+        written = _download_streaming_source(
+            load_dataset=load_dataset,
+            dataset_id=spec["dataset_id"],
+            split=spec["split"],
+            image_key=spec["image_key"],
+            output_dir=output_dir,
+            source_name=spec["source_name"],
+            label_name="human",
+            quota=quota,
+            row_filter=spec.get("row_filter"),
+        )
+        source_counts[spec["source_name"]] = written
+        label_counts["human"] += written
+
+    for index, spec in enumerate(ai_sources):
+        quota = _split_quota(ai_limit, len(ai_sources), index)
+        written = _download_streaming_source(
+            load_dataset=load_dataset,
+            dataset_id=spec["dataset_id"],
+            split=spec["split"],
+            image_key=spec["image_key"],
+            output_dir=output_dir,
+            source_name=spec["source_name"],
+            label_name="ai",
+            quota=quota,
+        )
+        source_counts[spec["source_name"]] = written
+        label_counts["ai"] += written
+
+    result = {
+        "dataset_family": "anime_fanart_filter_v2",
+        "output_dir": str(output_dir),
+        "summary_path": str(summary_path),
+        "num_downloaded": label_counts["human"] + label_counts["ai"],
+        "label_counts": label_counts,
+        "source_counts": source_counts,
+        "filters": {
+            "human_rating": ["g", "s"],
+            "exclude_tags": sorted(AI_TAG_EXCLUSIONS),
+            "minimum_safe_score": 0.8,
+            "minimum_polished_score": 0.85,
+            "minimum_aesthetic_score": 5.0,
+            "require_artist_tags": True,
+            "require_character_or_copyright_tags": True,
+        },
     }
     write_json(result, summary_path)
     return result
