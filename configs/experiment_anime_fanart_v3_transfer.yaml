@@ -1,0 +1,21 @@
+project:
+  name: ai-art-detector
+  experiment_name: anime_fanart_v3_transfer_efficientnet_b0
+  description: >
+    Broader anime moderation model with curated human fanart and a stronger
+    AI-side source mix including tagged Danbooru AI art.
+
+defaults:
+  data: anime_fanart_v3
+  model: improved
+  train: anime_fanart_v3_transfer
+  eval: default
+  runtime: default
+
+model:
+  checkpoint_path: artifacts/training/20260422_025008_anime_fanart_v2_transfer_efficientnet_b0/checkpoints/best.pt
+
+notes: >
+  Third-stage fine-tune that preserves the curated human fanart proxy while
+  broadening the AI class with Danbooru posts explicitly tagged as AI-generated
+  or AI-assisted.

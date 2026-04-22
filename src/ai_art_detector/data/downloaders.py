@@ -131,6 +131,21 @@ def _is_danbooru_fanart_row(row: dict[str, Any]) -> bool:
     return True
 
 
+def _is_danbooru_ai_row(row: dict[str, Any]) -> bool:
+    if str(row.get("rating", "")).lower() not in {"g", "s"}:
+        return False
+    all_tags = set(row.get("tags") or []) | set(row.get("general_tags") or []) | set(row.get("meta_tags") or [])
+    if not (AI_TAG_EXCLUSIONS & all_tags):
+        return False
+    if _classification_score(row.get("safe_check_score"), "safe") < 0.8:
+        return False
+    if _classification_score(row.get("completeness_score"), "polished") < 0.75:
+        return False
+    if float(row.get("aesthetic_score") or 0.0) < 4.5:
+        return False
+    return True
+
+
 def _download_streaming_source(
     *,
     load_dataset,
@@ -338,6 +353,113 @@ def download_anime_fanart_dataset(
             "minimum_aesthetic_score": 5.0,
             "require_artist_tags": True,
             "require_character_or_copyright_tags": True,
+        },
+    }
+    write_json(result, summary_path)
+    return result
+
+
+def download_anime_fanart_v3_dataset(
+    output_dir: str | Path,
+    human_limit: int = 3000,
+    ai_limit: int = 3000,
+) -> dict[str, Any]:
+    load_dataset = _require_datasets()
+    output_dir = resolve_path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    summary_path = output_dir.parent / f"{output_dir.name}_download_summary.json"
+
+    source_counts: dict[str, int] = {}
+    label_counts = {"human": 0, "ai": 0}
+
+    human_sources = [
+        {
+            "dataset_id": "ShinoharaHare/Danbooru-2024-Filtered-1M",
+            "source_name": "danbooru_fanart",
+            "split": "train",
+            "image_key": "image",
+            "row_filter": _is_danbooru_fanart_row,
+            "quota": human_limit,
+        }
+    ]
+    ai_sources = [
+        {
+            "dataset_id": "ShoukanLabs/OpenNiji-0_32237",
+            "source_name": "open_niji_0_32237",
+            "split": "train",
+            "image_key": "image",
+            "quota": ai_limit // 3,
+        },
+        {
+            "dataset_id": "ShoukanLabs/OpenNiji-32238_65000",
+            "source_name": "open_niji_32238_65000",
+            "split": "train",
+            "image_key": "image",
+            "quota": ai_limit // 3,
+        },
+        {
+            "dataset_id": "ShoukanLabs/OpenNiji-65001_100000",
+            "source_name": "open_niji_65001_100000",
+            "split": "train",
+            "image_key": "image",
+            "quota": ai_limit - 2 * (ai_limit // 3),
+        },
+    ]
+
+    for spec in human_sources:
+        written = _download_streaming_source(
+            load_dataset=load_dataset,
+            dataset_id=spec["dataset_id"],
+            split=spec["split"],
+            image_key=spec["image_key"],
+            output_dir=output_dir,
+            source_name=spec["source_name"],
+            label_name="human",
+            quota=spec["quota"],
+            row_filter=spec.get("row_filter"),
+        )
+        source_counts[spec["source_name"]] = written
+        label_counts["human"] += written
+
+    for spec in ai_sources:
+        written = _download_streaming_source(
+            load_dataset=load_dataset,
+            dataset_id=spec["dataset_id"],
+            split=spec["split"],
+            image_key=spec["image_key"],
+            output_dir=output_dir,
+            source_name=spec["source_name"],
+            label_name="ai",
+            quota=spec["quota"],
+            row_filter=spec.get("row_filter"),
+        )
+        source_counts[spec["source_name"]] = written
+        label_counts["ai"] += written
+
+    result = {
+        "dataset_family": "anime_fanart_filter_v3",
+        "output_dir": str(output_dir),
+        "summary_path": str(summary_path),
+        "num_downloaded": label_counts["human"] + label_counts["ai"],
+        "label_counts": label_counts,
+        "source_counts": source_counts,
+        "filters": {
+            "human_filters": {
+                "rating": ["g", "s"],
+                "exclude_tags": sorted(AI_TAG_EXCLUSIONS),
+                "minimum_safe_score": 0.8,
+                "minimum_polished_score": 0.85,
+                "minimum_aesthetic_score": 5.0,
+                "require_artist_tags": True,
+                "require_character_or_copyright_tags": True,
+            },
+            "ai_filters": {
+                "source_mix": [
+                    "ShoukanLabs/OpenNiji-0_32237",
+                    "ShoukanLabs/OpenNiji-32238_65000",
+                    "ShoukanLabs/OpenNiji-65001_100000",
+                ],
+            },
         },
     }
     write_json(result, summary_path)
