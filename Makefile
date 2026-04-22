@@ -2,8 +2,17 @@ PYTHON ?= python
 CONFIG ?= configs/experiment.yaml
 CHECKPOINT ?=
 IMAGE ?=
+OUTPUT_DIR ?= data/raw/hf_art_images_ai_and_real
+HUMAN_LIMIT ?= 3000
+AI_LIMIT ?= 3000
 
-.PHONY: prepare-data train evaluate predict export-onnx api demo test smoke-data
+.PHONY: download-real-data download-anime-data prepare-data train evaluate predict export-onnx api demo test smoke-data
+
+download-real-data:
+	$(PYTHON) -m ai_art_detector.cli download-real-dataset --output-dir $(OUTPUT_DIR)
+
+download-anime-data:
+	$(PYTHON) -m ai_art_detector.cli download-anime-dataset --output-dir data/raw/anime_social_filter --human-limit $(HUMAN_LIMIT) --ai-limit $(AI_LIMIT)
 
 prepare-data:
 	$(PYTHON) -m ai_art_detector.cli prepare-data --config $(CONFIG)

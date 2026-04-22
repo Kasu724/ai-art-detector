@@ -4,6 +4,7 @@ Research-style image classifier for detecting whether an artwork image is more l
 
 The repository is designed as a serious engineering project rather than a single notebook:
 - manifest-driven data preparation
+- real public dataset download adapter for a Hugging Face benchmark
 - PyTorch transfer-learning training pipeline
 - evaluation with threshold tuning, ROC-AUC, calibration, and error analysis
 - FastAPI inference API
@@ -67,12 +68,15 @@ This repo is intentionally structured so those risks are visible:
 
 ## Experiment Lineup
 
-The repository ships three experiment configs:
+The repository ships baseline, comparison, and smoke configs:
 
 | Experiment | Config | Purpose | Backbone |
 | --- | --- | --- | --- |
-| Baseline | `configs/experiment.yaml` | Resume-grade transfer-learning baseline | `resnet18` |
-| Improved | `configs/experiment_improved.yaml` | Stronger comparison run with heavier augmentation | `efficientnet_b0` |
+| Generic baseline | `configs/experiment.yaml` | Template transfer-learning baseline for your own folder dataset | `resnet18` |
+| Generic comparison | `configs/experiment_improved.yaml` | Template comparison run with heavier augmentation | `efficientnet_b0` |
+| Real baseline | `configs/experiment_real_art_hf.yaml` | Baseline on the public Hugging Face art dataset | `resnet18` |
+| Real comparison | `configs/experiment_real_art_hf_improved.yaml` | Same-dataset comparison run with stronger augmentation | `efficientnet_b0` |
+| Anime moderation | `configs/experiment_anime_social_transfer.yaml` | Warm-started fine-tune for anime/cartoon-style moderation | `efficientnet_b0` |
 | Smoke | `configs/experiment_smoke.yaml` | Fast CPU-only pipeline verification | `tiny_cnn` |
 
 ### Baseline experiment
@@ -197,66 +201,98 @@ python -m pip install -e .[dev,ml,api,demo,onnx]
 
 ## Quickstart
 
-### 1. Generate a smoke dataset
+### 1. Download the real public dataset
+
+```bash
+python -m ai_art_detector.cli download-real-dataset --output-dir data/raw/hf_art_images_ai_and_real
+```
+
+### 2. Prepare the real dataset manifest
+
+```bash
+python -m ai_art_detector.cli prepare-data --config configs/experiment_real_art_hf.yaml
+```
+
+### 3. Train the real baseline
+
+```bash
+python -m ai_art_detector.cli train --config configs/experiment_real_art_hf.yaml
+```
+
+### 4. Evaluate the real baseline
+
+```bash
+python -m ai_art_detector.cli evaluate --config configs/experiment_real_art_hf.yaml --checkpoint artifacts/training/<run>/checkpoints/best.pt
+```
+
+### 5. Train the real comparison variant
+
+```bash
+python -m ai_art_detector.cli train --config configs/experiment_real_art_hf_improved.yaml
+```
+
+### 6. Evaluate the comparison variant
+
+```bash
+python -m ai_art_detector.cli evaluate --config configs/experiment_real_art_hf_improved.yaml --checkpoint artifacts/training/<run>/checkpoints/best.pt
+```
+
+### 7. Run single-image inference
+
+```bash
+python -m ai_art_detector.cli predict --config configs/experiment_real_art_hf_improved.yaml --checkpoint artifacts/training/<run>/checkpoints/best.pt --image path/to/image.png
+```
+
+### Optional smoke-only pipeline check
 
 This synthetic dataset is only for pipeline validation. It is not a real AI-art benchmark.
 
 ```bash
 python scripts/generate_smoke_dataset.py
-```
-
-### 2. Prepare the dataset manifest
-
-```bash
 python -m ai_art_detector.cli prepare-data --config configs/experiment_smoke.yaml
-```
-
-### 3. Train the smoke model
-
-```bash
 python -m ai_art_detector.cli train --config configs/experiment_smoke.yaml
-```
-
-### 4. Evaluate the checkpoint
-
-```bash
-python -m ai_art_detector.cli evaluate --config configs/experiment_smoke.yaml --checkpoint artifacts/training/<run>/checkpoints/best.pt
-```
-
-### 5. Run single-image inference
-
-```bash
-python -m ai_art_detector.cli predict --config configs/experiment_smoke.yaml --checkpoint artifacts/training/<run>/checkpoints/best.pt --image path/to/image.png
 ```
 
 ## Real Dataset Workflow
 
-### Prepare data
+The repo includes a built-in adapter for the public `DataScienceProject/Art_Images_Ai_And_Real_` Hugging Face dataset.
 
-1. Place images in `data/raw/<source>/<label>/...`
-2. Run:
+### Download and materialize data
 
 ```bash
-python -m ai_art_detector.cli prepare-data --config configs/experiment.yaml
+python scripts/download_real_dataset.py --output-dir data/raw/hf_art_images_ai_and_real
+```
+
+The downloader writes:
+- `data/raw/hf_art_images_ai_and_real/ai/*.png`
+- `data/raw/hf_art_images_ai_and_real/human/*.png`
+- `data/raw/hf_art_images_ai_and_real_download_summary.json`
+
+### Prepare data
+
+Run:
+
+```bash
+python -m ai_art_detector.cli prepare-data --config configs/experiment_real_art_hf.yaml
 ```
 
 ### Train the baseline
 
 ```bash
-python -m ai_art_detector.cli train --config configs/experiment.yaml
+python -m ai_art_detector.cli train --config configs/experiment_real_art_hf.yaml
 ```
 
-### Train the improved experiment
+### Train the comparison experiment
 
 ```bash
-python -m ai_art_detector.cli train --config configs/experiment_improved.yaml
+python -m ai_art_detector.cli train --config configs/experiment_real_art_hf_improved.yaml
 ```
 
 ### Evaluate a checkpoint
 
 ```bash
-python -m ai_art_detector.cli evaluate --config configs/experiment.yaml --checkpoint artifacts/training/<baseline_run>/checkpoints/best.pt
-python -m ai_art_detector.cli evaluate --config configs/experiment_improved.yaml --checkpoint artifacts/training/<improved_run>/checkpoints/best.pt
+python -m ai_art_detector.cli evaluate --config configs/experiment_real_art_hf.yaml --checkpoint artifacts/training/<baseline_run>/checkpoints/best.pt
+python -m ai_art_detector.cli evaluate --config configs/experiment_real_art_hf_improved.yaml --checkpoint artifacts/training/<improved_run>/checkpoints/best.pt
 ```
 
 ### Compare evaluation runs
@@ -270,6 +306,45 @@ python -m ai_art_detector.cli compare-runs \
 This writes:
 - `artifacts/comparison/experiment_comparison.json`
 - `artifacts/comparison/experiment_comparison.md`
+
+## Anime Moderation Workflow
+
+This repo also includes a style-focused workflow aimed at anime/cartoon-heavy moderation scenarios such as art-sharing platforms.
+
+### Built-in sources
+
+- Human-style anime / illustration:
+  - `sayurio/anime-art-image`
+  - `Dhiraj45/Animes`
+- AI-style anime:
+  - `ShoukanLabs/OpenNiji-0_32237`
+  - `ShoukanLabs/OpenNiji-65001_100000`
+
+### Download the anime moderation dataset
+
+```bash
+python -m ai_art_detector.cli download-anime-dataset --output-dir data/raw/anime_social_filter --human-limit 3000 --ai-limit 3000
+```
+
+This materializes a balanced 2-class folder tree with per-source subdirectories so preparation can stratify by both label and source.
+
+### Prepare the anime moderation manifest
+
+```bash
+python -m ai_art_detector.cli prepare-data --config configs/experiment_anime_social_transfer.yaml
+```
+
+### Train the anime moderation model
+
+```bash
+python -m ai_art_detector.cli train --config configs/experiment_anime_social_transfer.yaml
+```
+
+### Evaluate the anime moderation model
+
+```bash
+python -m ai_art_detector.cli evaluate --config configs/experiment_anime_social_transfer.yaml --checkpoint artifacts/training/<run>/checkpoints/best.pt
+```
 
 ## Training Details
 
@@ -339,7 +414,7 @@ artifacts/evaluation/<timestamp>_<experiment_name>/
 
 ```bash
 python -m ai_art_detector.cli predict \
-  --config configs/experiment.yaml \
+  --config configs/experiment_real_art_hf_improved.yaml \
   --checkpoint artifacts/training/<run>/checkpoints/best.pt \
   --metrics-path artifacts/evaluation/<eval_run>/metrics.json \
   --image path/to/image.png
@@ -371,7 +446,7 @@ Example response shape:
 ### Run locally
 
 ```bash
-set AIAD_CONFIG_PATH=configs/experiment.yaml
+set AIAD_CONFIG_PATH=configs/experiment_real_art_hf_improved.yaml
 set AIAD_MODEL_PATH=artifacts/training/<run>/checkpoints/best.pt
 set AIAD_METRICS_PATH=artifacts/evaluation/<eval_run>/metrics.json
 python scripts/run_api.py
@@ -424,7 +499,7 @@ The sidebar accepts:
 
 ```bash
 python -m ai_art_detector.cli export-onnx \
-  --config configs/experiment.yaml \
+  --config configs/experiment_real_art_hf_improved.yaml \
   --checkpoint artifacts/training/<run>/checkpoints/best.pt \
   --output artifacts/onnx/model.onnx
 ```
@@ -458,9 +533,54 @@ docker compose up --build
 
 ## Results and Comparison Strategy
 
-This repo does not ship benchmark numbers because it does not redistribute a public AI-art dataset, and reporting hard-coded metrics without the exact dataset would be misleading.
+The repo now includes a real public-dataset workflow and example benchmark numbers from an executed run on April 21, 2026.
 
-Instead, the repo ships:
+### Public dataset used
+
+- Dataset: `DataScienceProject/Art_Images_Ai_And_Real_`
+- Materialized samples: 2,839 images
+- Class balance after download: 1,420 AI / 1,419 human
+- Project split after manifest preparation: 1,987 train / 426 val / 426 test
+
+### Held-out test metrics
+
+| Experiment | Config | Accuracy | Precision | Recall | F1 | ROC-AUC | ECE | Threshold |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Baseline | `configs/experiment_real_art_hf.yaml` | 0.9507 | 0.9660 | 0.9343 | 0.9499 | 0.9870 | 0.0899 | 0.100 |
+| Comparison variant | `configs/experiment_real_art_hf_improved.yaml` | 0.9883 | 0.9906 | 0.9859 | 0.9882 | 0.9972 | 0.0137 | 0.375 |
+
+### Interpretation
+
+- The `efficientnet_b0` comparison run materially improved both discrimination and calibration.
+- The best real run made 5 mistakes on the 426-image held-out test split: 2 false positives and 3 false negatives.
+- Temperature scaling reduced validation log loss for both runs, and the stronger model also kept test-time ECE low.
+- The comparison summary generated by the repo is stored at `artifacts/comparison/real_art_hf_baseline_vs_efficientnet.md`.
+
+### Anime moderation fine-tune
+
+On April 22, 2026, the repo was also used to build a style-focused anime moderation dataset with 6,000 images:
+
+- Human: 3,000
+- AI: 3,000
+- Sources: `sayurio_anime_art`, `dhiraj45_animes`, `open_niji_0_32237`, `open_niji_65001_100000`
+- Split: 4,200 train / 900 val / 900 test
+
+Held-out anime-style test metrics for the fine-tuned checkpoint:
+
+| Experiment | Accuracy | Precision | Recall | F1 | ROC-AUC | ECE | Threshold |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Generic EfficientNet on anime split | 0.8022 | 0.7491 | 0.9089 | 0.8213 | 0.8742 | 0.2417 | 0.725 |
+| Anime-specific fine-tune | 0.9844 | 0.9781 | 0.9911 | 0.9845 | 0.9980 | 0.0079 | 0.300 |
+
+Operational threshold sweep for the anime fine-tune on the held-out test split:
+
+- `0.3`: precision `0.9781`, recall `0.9911`
+- `0.5`: precision `0.9889`, recall `0.9889`
+- `0.7`: precision `0.9933`, recall `0.9844`
+
+The anime fine-tune reduced the generic model's false positives on stylized art substantially, but the hardest remaining human false positives still cluster in the `sayurio_anime_art` source. That is a good reminder that illustration-heavy human art can still sit very close to modern anime generators in feature space.
+
+The repo also ships:
 - a baseline experiment config
 - an improved experiment config
 - a comparison command that produces a Markdown summary
@@ -482,6 +602,7 @@ pytest
 
 Current tests cover:
 - config composition
+- real dataset download materialization
 - dataset preparation
 - metric helpers
 - experiment comparison writing
@@ -490,6 +611,8 @@ Current tests cover:
 ## Common Commands
 
 ```bash
+make download-real-data
+make download-anime-data
 make smoke-data
 make prepare-data CONFIG=configs/experiment.yaml
 make train CONFIG=configs/experiment.yaml
@@ -508,11 +631,13 @@ This project is intentionally honest about its limits.
 - images from the same source can share compression, post-processing, or watermarks
 - train/test splits are not a guarantee of true generator isolation
 - source-aware evaluation is still necessary
+- the included Hugging Face dataset arrives with its own upstream train/test folders, but this project re-prepares a fresh manifest split for reproducible internal experimentation; treat the resulting score as a project benchmark, not the dataset author's canonical leaderboard number
 
 ### Domain shift
 - a model trained on stylized art may fail on photographs or mixed-media imagery
 - a detector tuned on older generators may not generalize to newer ones
 - edited images and screenshots can confuse the classifier
+- an anime-focused detector can outperform a generic art detector on anime/cartoon imagery while still underperforming on other illustration communities or on styles not represented in the fine-tuning sources
 
 ### Confidence misuse
 - calibrated probabilities are still model estimates, not provenance facts
@@ -535,4 +660,4 @@ This project is intentionally honest about its limits.
 
 ## Status
 
-The repository is now structured as a full end-to-end project. It still depends on an external real dataset for meaningful benchmark numbers, but the code paths for preparation, training, evaluation, inference, API serving, demo usage, comparison, and Dockerization are in place.
+The repository is now a complete end-to-end project with a tested public-dataset adapter, trained real checkpoints, evaluation artifacts, ONNX export, a working FastAPI service, and a working Streamlit demo.

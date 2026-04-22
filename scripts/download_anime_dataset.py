@@ -6,10 +6,9 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-import uvicorn
-from ai_art_detector.utils.env import load_project_env
+from ai_art_detector.cli import main
 
 
 if __name__ == "__main__":
-    load_project_env()
-    uvicorn.run("ai_art_detector.api.app:app", host="0.0.0.0", port=8000, reload=False)
+    sys.argv.insert(1, "download-anime-dataset")
+    raise SystemExit(main())

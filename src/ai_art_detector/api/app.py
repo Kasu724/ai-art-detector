@@ -20,6 +20,9 @@ from ai_art_detector.inference.predictor import (
     PredictionResult,
     load_predictor_from_environment,
 )
+from ai_art_detector.utils.env import load_project_env
+
+load_project_env()
 
 
 def _to_response(payload: PredictionResult) -> PredictionResponse:

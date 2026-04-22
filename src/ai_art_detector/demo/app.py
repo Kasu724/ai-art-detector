@@ -8,6 +8,9 @@ import streamlit as st
 
 from ai_art_detector.config import load_experiment_config
 from ai_art_detector.inference.predictor import InvalidImageError, load_predictor
+from ai_art_detector.utils.env import load_project_env
+
+load_project_env()
 
 
 @st.cache_resource(show_spinner=False)

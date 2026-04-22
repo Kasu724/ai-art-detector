@@ -131,7 +131,20 @@ def _load_checkpoint(checkpoint_path: str | Path):
 def _resolve_eval_config(config: ExperimentConfig, checkpoint: dict[str, Any]) -> ExperimentConfig:
     checkpoint_config = checkpoint.get("config")
     if checkpoint_config:
-        return experiment_config_from_dict(checkpoint_config)
+        loaded = experiment_config_from_dict(checkpoint_config)
+        return ExperimentConfig(
+            project=config.project,
+            data=config.data,
+            model=replace(
+                loaded.model,
+                checkpoint_path=config.model.checkpoint_path or loaded.model.checkpoint_path,
+                onnx_path=config.model.onnx_path or loaded.model.onnx_path,
+            ),
+            train=config.train,
+            eval=config.eval,
+            runtime=config.runtime,
+            notes=config.notes or loaded.notes,
+        )
     return config
 
 

@@ -1,0 +1,20 @@
+project:
+  name: ai-art-detector
+  experiment_name: anime_social_transfer_efficientnet_b0
+  description: >
+    Anime- and cartoon-leaning moderation detector fine-tuned for modern
+    social-media illustration styles using human anime art and AI anime images.
+
+defaults:
+  data: anime_social
+  model: improved
+  train: anime_social_transfer
+  eval: default
+  runtime: default
+
+model:
+  checkpoint_path: artifacts/training/20260421_214912_real_art_hf_efficientnet_b0/checkpoints/best.pt
+
+notes: >
+  Warm-starts from the existing EfficientNet-B0 detector and fine-tunes on a
+  style-focused anime moderation dataset built from public Hugging Face sources.

@@ -46,6 +46,46 @@ def build_parser() -> argparse.ArgumentParser:
         help="Optional override for the output summary JSON path.",
     )
 
+    download_parser = subparsers.add_parser(
+        "download-real-dataset",
+        help="Download and materialize a supported real art-vs-AI dataset.",
+    )
+    download_parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path("data/raw/hf_art_images_ai_and_real"),
+        help="Target directory for the downloaded images.",
+    )
+    download_parser.add_argument(
+        "--max-per-split",
+        type=int,
+        default=None,
+        help="Optional cap per dataset split for quick experiments.",
+    )
+
+    anime_download_parser = subparsers.add_parser(
+        "download-anime-dataset",
+        help="Download a style-focused anime human-vs-AI dataset mix for moderation experiments.",
+    )
+    anime_download_parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path("data/raw/anime_social_filter"),
+        help="Target directory for the downloaded anime moderation dataset.",
+    )
+    anime_download_parser.add_argument(
+        "--human-limit",
+        type=int,
+        default=3000,
+        help="Total number of human-made anime images to materialize.",
+    )
+    anime_download_parser.add_argument(
+        "--ai-limit",
+        type=int,
+        default=3000,
+        help="Total number of AI-generated anime images to materialize.",
+    )
+
     train_parser = subparsers.add_parser(
         "train",
         help="Train a model from the prepared manifest.",
@@ -129,6 +169,37 @@ def run_prepare_data(args: argparse.Namespace) -> int:
     return 0
 
 
+def run_download_real_dataset(args: argparse.Namespace) -> int:
+    from ai_art_detector.data.downloaders import download_real_art_dataset
+
+    result = download_real_art_dataset(
+        output_dir=args.output_dir,
+        max_per_split=args.max_per_split,
+    )
+    print(f"Dataset source: {result['dataset_id']}")
+    print(f"Output directory: {result['output_dir']}")
+    print(f"Downloaded files: {result['num_downloaded']}")
+    print(f"Summary path: {result['summary_path']}")
+    return 0
+
+
+def run_download_anime_dataset(args: argparse.Namespace) -> int:
+    from ai_art_detector.data.downloaders import download_anime_social_dataset
+
+    result = download_anime_social_dataset(
+        output_dir=args.output_dir,
+        human_limit=args.human_limit,
+        ai_limit=args.ai_limit,
+    )
+    print(f"Dataset family: {result['dataset_family']}")
+    print(f"Output directory: {result['output_dir']}")
+    print(f"Downloaded files: {result['num_downloaded']}")
+    print(f"Human images: {result['label_counts']['human']}")
+    print(f"AI images: {result['label_counts']['ai']}")
+    print(f"Summary path: {result['summary_path']}")
+    return 0
+
+
 def run_train(args: argparse.Namespace) -> int:
     from ai_art_detector.training.pipeline import train_model
 
@@ -200,6 +271,10 @@ def main() -> int:
 
     if args.command == "prepare-data":
         return run_prepare_data(args)
+    if args.command == "download-real-dataset":
+        return run_download_real_dataset(args)
+    if args.command == "download-anime-dataset":
+        return run_download_anime_dataset(args)
     if args.command == "train":
         return run_train(args)
     if args.command == "evaluate":

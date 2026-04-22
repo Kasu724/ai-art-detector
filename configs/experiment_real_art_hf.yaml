@@ -1,0 +1,16 @@
+project:
+  name: ai-art-detector
+  experiment_name: real_art_hf_resnet18
+  description: >
+    Real-dataset baseline using the public Hugging Face AI-vs-real art dataset.
+
+defaults:
+  data: real_art_hf
+  model: baseline
+  train: real_art_hf
+  eval: default
+  runtime: default
+
+notes: >
+  Uses the public DataScienceProject/Art_Images_Ai_And_Real_ dataset, downloaded
+  into the repo raw-data layout and then prepared into a manifest.

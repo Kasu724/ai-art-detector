@@ -10,7 +10,7 @@ from typing import Any
 
 import numpy as np
 
-from ai_art_detector.config import ExperimentConfig
+from ai_art_detector.config import ExperimentConfig, resolve_path
 from ai_art_detector.data.datasets import build_dataloaders
 from ai_art_detector.evaluation.metrics import compute_binary_metrics
 from ai_art_detector.evaluation.pipeline import predict_dataloader
@@ -143,6 +143,33 @@ def _save_training_curve(history: list[dict[str, Any]], output_path: Path) -> Pa
     return output_path
 
 
+def _maybe_load_initial_checkpoint(torch, model, config: ExperimentConfig) -> dict[str, Any] | None:
+    checkpoint_path = config.model.checkpoint_path
+    if not checkpoint_path:
+        return None
+
+    resolved_path = resolve_path(checkpoint_path)
+    checkpoint = torch.load(resolved_path, map_location="cpu")
+    state_dict = checkpoint.get("model_state_dict")
+    if state_dict is None:
+        raise ValueError(f"Checkpoint `{resolved_path}` does not contain model weights.")
+
+    load_result = model.load_state_dict(state_dict, strict=False)
+    missing_keys = sorted(load_result.missing_keys)
+    unexpected_keys = sorted(load_result.unexpected_keys)
+    LOGGER.info(
+        "Warm-started model from %s | missing_keys=%s unexpected_keys=%s",
+        resolved_path,
+        len(missing_keys),
+        len(unexpected_keys),
+    )
+    return {
+        "checkpoint_path": str(resolved_path),
+        "missing_keys": missing_keys,
+        "unexpected_keys": unexpected_keys,
+    }
+
+
 def train_model(config: ExperimentConfig) -> TrainingResult:
     torch, nn, optim = _get_torch()
     set_global_seed(
@@ -164,6 +191,7 @@ def train_model(config: ExperimentConfig) -> TrainingResult:
     summary_path = run_context.run_dir / "training_summary.json"
 
     model = create_model(config.model).to(device)
+    initialization = _maybe_load_initial_checkpoint(torch, model, config)
     parameter_counts = count_parameters(model)
     optimizer = _build_optimizer(optim, model, config)
     scheduler = _build_scheduler(optim, optimizer, config)
@@ -298,6 +326,7 @@ def train_model(config: ExperimentConfig) -> TrainingResult:
         "best_metric_name": best_metric_name,
         "best_metric_value": best_metric,
         "parameter_counts": parameter_counts,
+        "initialization": initialization,
         "num_train_samples": len(split_samples["train"]),
         "num_val_samples": len(split_samples["val"]),
         "history_length": len(history),
