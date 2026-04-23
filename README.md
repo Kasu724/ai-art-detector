@@ -1,17 +1,6 @@
 # AI Art Detector
 
-Research-style image classifier for detecting whether an artwork image is more likely AI-generated or human-made.
-
-The repository is designed as a serious engineering project rather than a single notebook:
-- manifest-driven data preparation
-- real public dataset download adapter for a Hugging Face benchmark
-- PyTorch transfer-learning training pipeline
-- evaluation with threshold tuning, ROC-AUC, calibration, and error analysis
-- FastAPI inference API
-- Streamlit demo
-- Docker support
-- experiment configs for baseline and improved variants
-- reproducible artifact layout and tests
+An image classifier for detecting whether an artwork image is more likely AI-generated or human-made.
 
 ## Motivation
 
@@ -26,9 +15,9 @@ This repo is intentionally structured so those risks are visible:
 - splits are saved and reproducible
 - evaluation reports more than accuracy
 - confidence thresholds and calibration are surfaced explicitly
-- the README documents domain-shift and leakage concerns instead of hiding them
+- the README documents domain-shift and leakage concerns
 
-## What Is Included
+## In this Repo
 
 ### Core pipeline
 - dataset preparation from a raw folder tree into a reproducible CSV manifest
@@ -54,11 +43,11 @@ This repo is intentionally structured so those risks are visible:
   - `GET /health`
   - `POST /predict`
   - `POST /predict-batch`
-- Streamlit demo for interactive uploads
+- dark-only Streamlit demo
 - single-image CLI inference
 - ONNX export path
 
-### Engineering / reproducibility
+### Engineering / Reproducibility
 - config-driven experiments under `configs/`
 - run artifacts grouped by stage under `artifacts/`
 - tests for config loading, dataset preparation, metrics, and API behavior
@@ -544,6 +533,19 @@ Run:
 python scripts/run_demo.py
 ```
 
+The demo is intentionally dark-only and minimal. It does not expose a light-mode
+or theme switch, and no `AIAD_DEMO_THEME` environment variable is required.
+
+It uses the same model-related environment variables as the API when they are
+present in `.env`:
+
+- `AIAD_CONFIG_PATH`
+- `AIAD_MODEL_PATH`
+- `AIAD_METRICS_PATH`
+- `AIAD_ONNX_PATH`
+- `AIAD_THRESHOLD`
+- `AIAD_DEVICE`
+
 The demo lets a user:
 - upload an image
 - view the predicted class
@@ -820,4 +822,4 @@ This project is intentionally honest about its limits.
 
 ## Status
 
-The repository is now a complete end-to-end project with a tested public-dataset adapter, trained real checkpoints, anime- and fanart-focused transfer runs through `v3`, evaluation artifacts, ONNX export, a working FastAPI service, and a working Streamlit demo.
+The repository is now a project with a tested public-dataset adapter, trained real checkpoints, anime- and fanart-focused transfer runs through `v4`, evaluation artifacts, ONNX export, a working FastAPI service, and a working Streamlit demo.
