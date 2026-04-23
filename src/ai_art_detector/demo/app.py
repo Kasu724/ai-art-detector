@@ -14,40 +14,120 @@ from ai_art_detector.utils.env import load_project_env
 load_project_env()
 
 
-def _inject_styles() -> None:
-    st.markdown(
-        """
-        <style>
-        :root {
-          --bg: #151b22;
-          --panel: #1d2630;
-          --panel-soft: #202b36;
-          --field: #172029;
-          --text: #e4e9ee;
-          --muted: #a9b4bf;
-          --border: #35424f;
-          --ai: #e06d5f;
-          --human: #74c69d;
-          --review: #d1a24a;
-        }
+THEMES = {
+    "Dark": {
+        "scheme": "dark",
+        "bg": "#131a22",
+        "surface": "#18222c",
+        "panel": "#202b36",
+        "panel_soft": "#26323e",
+        "field": "#151f29",
+        "text": "#e6edf3",
+        "muted": "#a7b4c1",
+        "border": "#344352",
+        "sidebar": "#161f28",
+        "track": "#2e3b48",
+        "ai": "#e06d5f",
+        "human": "#74c69d",
+        "review": "#d1a24a",
+        "shadow": "rgba(6, 10, 15, 0.28)",
+    },
+    "Light": {
+        "scheme": "light",
+        "bg": "#eef2f5",
+        "surface": "#f7f9fb",
+        "panel": "#f1f5f8",
+        "panel_soft": "#e7edf2",
+        "field": "#edf2f6",
+        "text": "#1e2a35",
+        "muted": "#526170",
+        "border": "#c8d2dc",
+        "sidebar": "#e7edf2",
+        "track": "#d6e0e8",
+        "ai": "#bd4d42",
+        "human": "#2f7a55",
+        "review": "#936719",
+        "shadow": "rgba(70, 82, 94, 0.14)",
+    },
+}
 
-        html, body, [class*="css"] {
+
+def _theme_css_variables(theme_name: str) -> str:
+    values = THEMES[theme_name]
+    return "\n".join(f"          --{key.replace('_', '-')}: {value};" for key, value in values.items())
+
+
+def _inject_styles(theme_name: str) -> None:
+    css_vars = _theme_css_variables(theme_name)
+    st.markdown(
+        f"""
+        <style>
+        :root {{
+{css_vars}
+          color-scheme: var(--scheme);
+        }}
+
+        html, body, [class*="css"] {{
           font-family: "Segoe UI", "Aptos", "Helvetica Neue", Arial, sans-serif;
-        }
+        }}
 
         body,
-        .stApp {
-          background: var(--bg);
-          color: var(--text);
-        }
-
+        .stApp,
         [data-testid="stAppViewContainer"],
-        [data-testid="stHeader"] {
-          background: var(--bg);
-        }
+        [data-testid="stMain"],
+        [data-testid="stMainBlockContainer"],
+        [data-testid="stAppViewBlockContainer"] {{
+          background: var(--bg) !important;
+          color: var(--text) !important;
+        }}
+
+        [data-testid="stHeader"] {{
+          background: transparent !important;
+          color: var(--text) !important;
+          pointer-events: none !important;
+        }}
+
+        [data-testid="stToolbar"] {{
+          background: transparent !important;
+          pointer-events: none !important;
+        }}
+
+        [data-testid="stToolbar"] > div > div:not(:first-child) {{
+          display: none !important;
+        }}
+
+        [data-testid="stExpandSidebarButton"] {{
+          display: inline-flex !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+          align-items: center;
+          justify-content: center;
+          color: var(--text) !important;
+          background: var(--panel) !important;
+          border: 1px solid var(--border) !important;
+          border-radius: 999px !important;
+          box-shadow: 0 10px 24px var(--shadow);
+          pointer-events: auto !important;
+        }}
+
+        [data-testid="stExpandSidebarButton"] *,
+        [data-testid="stExpandSidebarButton"] svg {{
+          color: var(--text) !important;
+          fill: var(--text) !important;
+        }}
+
+        [data-testid="stDecoration"],
+        #MainMenu {{
+          display: none !important;
+          height: 0 !important;
+          min-height: 0 !important;
+          visibility: hidden !important;
+        }}
 
         .stMarkdown,
         .stText,
+        [data-testid="stMarkdownContainer"],
+        [data-testid="stMarkdownContainer"] *,
         label,
         p,
         h1,
@@ -55,230 +135,348 @@ def _inject_styles() -> None:
         h3,
         h4,
         h5,
-        h6 {
+        h6,
+        span {{
           color: var(--text);
-        }
+        }}
 
-        .block-container {
-          max-width: 1040px;
-          padding-top: 2.2rem;
+        .block-container {{
+          max-width: 1080px;
+          padding-top: 0.85rem;
           padding-bottom: 3rem;
-        }
+        }}
 
-        section[data-testid="stSidebar"] {
-          background: #19212a;
+        section[data-testid="stSidebar"] {{
+          background: var(--sidebar) !important;
           border-right: 1px solid var(--border);
-        }
+          overflow: hidden !important;
+        }}
 
-        section[data-testid="stSidebar"] .stMarkdown,
-        section[data-testid="stSidebar"] label,
-        section[data-testid="stSidebar"] p,
+        section[data-testid="stSidebar"] * {{
+          color: var(--text);
+        }}
+
+        section[data-testid="stSidebar"] > div,
+        section[data-testid="stSidebar"] [data-testid="stSidebarContent"] {{
+          background: var(--sidebar) !important;
+          overflow-y: auto !important;
+          overflow-x: hidden !important;
+          scrollbar-gutter: auto;
+        }}
+
+        section[data-testid="stSidebar"] > div {{
+          max-height: 100vh;
+        }}
+
+        section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] {{
+          gap: 0.55rem;
+        }}
+
+        section[data-testid="stSidebar"] .stTextInput,
+        section[data-testid="stSidebar"] .stRadio {{
+          margin-bottom: 0.15rem;
+        }}
+
         section[data-testid="stSidebar"] h1,
         section[data-testid="stSidebar"] h2,
-        section[data-testid="stSidebar"] h3 {
-          color: var(--text);
-        }
+        section[data-testid="stSidebar"] h3 {{
+          margin-top: 0;
+          margin-bottom: 0.45rem;
+        }}
 
         [data-testid="stCaptionContainer"],
+        [data-testid="stCaptionContainer"] *,
         [data-testid="stFileUploader"] small,
-        [data-testid="InputInstructions"] {
-          color: var(--muted);
-        }
+        [data-testid="InputInstructions"],
+        [data-testid="InputInstructions"] * {{
+          color: var(--muted) !important;
+        }}
 
-        div[data-baseweb="input"] {
-          background: var(--field);
-          border-color: var(--border);
-        }
+        div[data-baseweb="input"],
+        div[data-baseweb="select"] > div,
+        div[data-baseweb="radio"],
+        .stTextInput > div > div,
+        .stNumberInput > div > div,
+        .stSelectbox > div > div {{
+          background: var(--field) !important;
+          border-color: var(--border) !important;
+        }}
 
-        div[data-baseweb="input"] input {
-          color: var(--text);
-          -webkit-text-fill-color: var(--text);
-        }
+        div[data-baseweb="input"] input,
+        div[data-baseweb="select"] span,
+        div[data-baseweb="radio"] span,
+        .stTextInput input,
+        .stNumberInput input,
+        textarea {{
+          color: var(--text) !important;
+          -webkit-text-fill-color: var(--text) !important;
+          background: transparent !important;
+        }}
 
-        div[data-baseweb="input"] input::placeholder {
-          color: var(--muted);
+        div[data-baseweb="input"] input::placeholder,
+        .stTextInput input::placeholder,
+        textarea::placeholder {{
+          color: var(--muted) !important;
           opacity: 1;
-        }
+        }}
 
-        div[data-testid="stFileUploaderDropzone"] {
-          background: var(--panel);
-          border-color: var(--border);
-        }
+        div[role="radiogroup"],
+        div[role="radiogroup"] label,
+        div[role="radio"] {{
+          background: transparent !important;
+          color: var(--text) !important;
+        }}
 
-        div[data-testid="stFileUploaderDropzone"] * {
-          color: var(--text);
-        }
+        div[data-testid="stFileUploaderDropzone"] {{
+          background: var(--panel) !important;
+          border-color: var(--border) !important;
+        }}
 
-        button {
-          color: var(--text);
-          background: var(--panel-soft);
-          border-color: var(--border);
-        }
+        div[data-testid="stFileUploaderDropzone"] * {{
+          color: var(--text) !important;
+        }}
 
-        .page-header {
-          padding-bottom: 1rem;
+        [data-testid="stFileUploader"] section,
+        [data-testid="stFileUploader"] div {{
+          border-color: var(--border) !important;
+        }}
+
+        button {{
+          color: var(--text) !important;
+          background: var(--panel-soft) !important;
+          border-color: var(--border) !important;
+        }}
+
+        button:hover {{
+          border-color: var(--muted) !important;
+          color: var(--text) !important;
+          background: var(--panel) !important;
+        }}
+
+        [data-testid="stAlert"],
+        [data-testid="stNotification"],
+        [data-testid="stException"] {{
+          background: var(--panel) !important;
+          color: var(--text) !important;
+          border-color: var(--border) !important;
+        }}
+
+        [data-testid="stAlert"] *,
+        [data-testid="stNotification"] *,
+        [data-testid="stException"] * {{
+          color: var(--text) !important;
+        }}
+
+        .page-header {{
+          display: flex;
+          justify-content: space-between;
+          gap: 1.25rem;
+          align-items: flex-end;
+          padding: 1.25rem;
           margin-bottom: 1.25rem;
-          border-bottom: 1px solid var(--border);
-        }
+          border: 1px solid var(--border);
+          border-radius: 16px;
+          background: var(--surface);
+          box-shadow: 0 18px 42px var(--shadow);
+        }}
 
-        .page-header h1 {
-          margin: 0 0 0.35rem;
-          font-size: 2.1rem;
-          line-height: 1.1;
-          letter-spacing: -0.02em;
-          font-weight: 700;
-        }
+        .page-header h1 {{
+          margin: 0 0 0.4rem;
+          font-size: clamp(2rem, 4vw, 3rem);
+          line-height: 1.05;
+          letter-spacing: -0.035em;
+          font-weight: 750;
+          color: var(--text);
+        }}
 
-        .page-header p {
-          max-width: 760px;
+        .page-header p {{
+          max-width: 720px;
           margin: 0;
           color: var(--muted);
           line-height: 1.55;
           font-size: 0.98rem;
-        }
+        }}
 
-        .section-label {
-          margin: 1.25rem 0 0.55rem;
+        .header-chip {{
+          display: inline-flex;
+          align-items: center;
+          gap: 0.4rem;
+          padding: 0.42rem 0.65rem;
+          border: 1px solid var(--border);
+          border-radius: 999px;
+          background: var(--panel);
           color: var(--muted);
           font-size: 0.78rem;
           font-weight: 700;
-          letter-spacing: 0.06em;
+          white-space: nowrap;
+        }}
+
+        .section-label {{
+          margin: 1.15rem 0 0.55rem;
+          color: var(--muted);
+          font-size: 0.77rem;
+          font-weight: 750;
+          letter-spacing: 0.07em;
           text-transform: uppercase;
-        }
+        }}
 
         .empty-state,
         .result-card,
-        .note-card {
+        .note-card {{
           border: 1px solid var(--border);
-          border-radius: 12px;
-          background: var(--panel);
-        }
+          border-radius: 14px;
+          background: var(--surface);
+          box-shadow: 0 14px 34px var(--shadow);
+        }}
 
-        .empty-state {
+        .empty-state {{
           padding: 1.15rem 1.25rem;
           color: var(--muted);
           line-height: 1.55;
-        }
+        }}
 
-        .result-card {
+        .result-card {{
           padding: 1.1rem;
-        }
+        }}
 
-        .verdict-row {
+        .verdict-row {{
           display: flex;
           justify-content: space-between;
           gap: 1rem;
           align-items: flex-start;
-          padding-bottom: 0.9rem;
+          padding-bottom: 0.95rem;
           border-bottom: 1px solid var(--border);
-        }
+        }}
 
-        .verdict-row h2 {
-          margin: 0.2rem 0 0;
-          font-size: 1.65rem;
+        .verdict-row h2 {{
+          margin: 0.18rem 0 0;
+          font-size: 1.62rem;
           line-height: 1.12;
-          font-weight: 700;
-        }
+          font-weight: 750;
+        }}
 
-        .small-label {
+        .small-label {{
           color: var(--muted);
-          font-size: 0.76rem;
-          font-weight: 700;
-          letter-spacing: 0.05em;
+          font-size: 0.74rem;
+          font-weight: 750;
+          letter-spacing: 0.06em;
           text-transform: uppercase;
-        }
+        }}
 
-        .badge {
+        .badge {{
           display: inline-block;
-          padding: 0.32rem 0.55rem;
+          padding: 0.34rem 0.6rem;
           border-radius: 999px;
           border: 1px solid currentColor;
-          font-size: 0.76rem;
-          font-weight: 700;
+          background: color-mix(in srgb, currentColor 12%, transparent);
+          font-size: 0.75rem;
+          font-weight: 750;
           white-space: nowrap;
-        }
+        }}
 
-        .stats {
+        .stats {{
           display: grid;
           grid-template-columns: repeat(3, minmax(0, 1fr));
           gap: 0.75rem;
           margin-top: 1rem;
-        }
+        }}
 
-        .stat {
-          padding: 0.75rem;
+        .stat {{
+          padding: 0.78rem;
           border: 1px solid var(--border);
-          border-radius: 10px;
-          background: var(--panel-soft);
-        }
+          border-radius: 12px;
+          background: var(--panel);
+        }}
 
-        .stat-value {
+        .stat-value {{
           margin-top: 0.2rem;
           font-size: 1.25rem;
-          font-weight: 700;
+          font-weight: 750;
           color: var(--text);
-        }
+        }}
 
-        .meter {
+        .meter {{
           margin-top: 1rem;
-        }
+        }}
 
-        .meter-row {
+        .meter-row {{
           display: flex;
           justify-content: space-between;
           color: var(--muted);
           font-size: 0.88rem;
-          font-weight: 600;
-        }
+          font-weight: 650;
+        }}
 
-        .track {
+        .meter-row span {{
+          color: var(--muted);
+        }}
+
+        .track {{
           height: 10px;
           margin-top: 0.35rem;
           overflow: hidden;
           border-radius: 999px;
-          background: #2d3946;
-        }
+          background: var(--track);
+        }}
 
-        .fill {
+        .fill {{
           height: 100%;
           border-radius: 999px;
-        }
+        }}
 
-        .note-card {
+        .note-card {{
           margin-top: 0.85rem;
           padding: 0.9rem 1rem;
           color: var(--muted);
           line-height: 1.5;
           font-size: 0.92rem;
-        }
+        }}
 
-        .note-card strong {
+        .note-card,
+        .note-card span {{
+          color: var(--muted);
+        }}
+
+        .note-card strong {{
           color: var(--text);
-        }
+        }}
 
-        img {
-          border-radius: 10px;
+        img {{
+          border-radius: 14px;
           border: 1px solid var(--border);
           background: var(--panel);
-        }
+        }}
 
-        @media (max-width: 800px) {
-          .stats {
-            grid-template-columns: 1fr;
-          }
-
-          .verdict-row {
+        @media (max-width: 850px) {{
+          .page-header {{
             display: block;
-          }
+          }}
 
-          .badge {
+          .header-chip {{
+            margin-top: 0.9rem;
+          }}
+
+          .stats {{
+            grid-template-columns: 1fr;
+          }}
+
+          .verdict-row {{
+            display: block;
+          }}
+
+          .badge {{
             margin-top: 0.65rem;
-          }
-        }
+          }}
+        }}
         </style>
         """,
         unsafe_allow_html=True,
     )
+
+
+def _default_theme() -> str:
+    value = os.getenv("AIAD_DEMO_THEME", "Dark").strip().title()
+    return value if value in THEMES else "Dark"
 
 
 def _percent(value: float) -> str:
@@ -294,20 +492,20 @@ def _moderation_meta(probability_ai: float, threshold: float) -> dict[str, str]:
         return {
             "badge": "Flag",
             "title": "Likely AI-generated",
-            "color": "#e06d5f",
+            "color": "var(--ai)",
             "copy": "This image is above the active AI threshold. Treat this as a review flag, not proof.",
         }
     if probability_ai >= max(threshold - 0.12, 0.0):
         return {
             "badge": "Review",
             "title": "Borderline",
-            "color": "#d1a24a",
+            "color": "var(--review)",
             "copy": "This image is close to the threshold. It should be reviewed manually.",
         }
     return {
         "badge": "Pass",
         "title": "Likely human-made",
-        "color": "#74c69d",
+        "color": "var(--human)",
         "copy": "This image is below the active AI threshold. That does not prove authorship.",
     }
 
@@ -334,23 +532,15 @@ def _load_predictor_cached(
 
 def main() -> None:
     st.set_page_config(page_title="AI Art Detector", page_icon="AI", layout="wide")
-    _inject_styles()
-
-    st.markdown(
-        """
-        <div class="page-header">
-          <h1>AI Art Detector</h1>
-          <p>
-            Upload an artwork image to estimate whether it looks AI-generated or human-made.
-            The model output should be used as a moderation signal, not a final source-of-truth.
-          </p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
 
     with st.sidebar:
         st.header("Settings")
+        theme = st.radio(
+            "Theme",
+            options=list(THEMES),
+            index=list(THEMES).index(_default_theme()),
+            horizontal=True,
+        )
         st.caption("Loaded from `.env`. Override here if needed.")
         config_path = st.text_input("Config path", value=os.getenv("AIAD_CONFIG_PATH", "configs/experiment.yaml"))
         checkpoint_path = st.text_input("Checkpoint path", value=os.getenv("AIAD_MODEL_PATH", ""))
@@ -358,6 +548,24 @@ def main() -> None:
         onnx_path = st.text_input("ONNX path", value=os.getenv("AIAD_ONNX_PATH", ""))
         threshold_override = st.text_input("Threshold", value=os.getenv("AIAD_THRESHOLD", ""))
         device = st.text_input("Device", value=os.getenv("AIAD_DEVICE", "auto"))
+
+    _inject_styles(theme)
+
+    st.markdown(
+        """
+        <div class="page-header">
+          <div>
+            <h1>AI Art Detector</h1>
+            <p>
+              Upload artwork and get an AI-likelihood score with a moderation-oriented decision.
+              Use the result as one review signal, not as proof of provenance.
+            </p>
+          </div>
+          <div class="header-chip">v4 recall model</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     st.markdown('<div class="section-label">Upload</div>', unsafe_allow_html=True)
     upload = st.file_uploader("Choose an image", type=["png", "jpg", "jpeg", "webp"], label_visibility="collapsed")
@@ -428,12 +636,12 @@ def main() -> None:
 
               <div class="meter">
                 <div class="meter-row"><span>AI-generated</span><span>{_percent(result.probability_ai)}</span></div>
-                <div class="track"><div class="fill" style="width:{ai_width:.1f}%; background:#e06d5f;"></div></div>
+                <div class="track"><div class="fill" style="width:{ai_width:.1f}%; background:var(--ai);"></div></div>
               </div>
 
               <div class="meter">
                 <div class="meter-row"><span>Human-made</span><span>{_percent(result.probabilities["human"])}</span></div>
-                <div class="track"><div class="fill" style="width:{human_width:.1f}%; background:#74c69d;"></div></div>
+                <div class="track"><div class="fill" style="width:{human_width:.1f}%; background:var(--human);"></div></div>
               </div>
             </div>
             """,
