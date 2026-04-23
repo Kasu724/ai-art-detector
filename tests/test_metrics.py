@@ -34,6 +34,15 @@ def test_threshold_tuning_finds_reasonable_boundary() -> None:
     assert result.score >= 0.99
 
 
+def test_threshold_tuning_supports_recall_weighted_fbeta() -> None:
+    targets = np.array([0, 0, 1, 1, 1])
+    probabilities = np.array([0.1, 0.4, 0.35, 0.6, 0.9])
+    result = tune_threshold(targets, probabilities, metric_name="fbeta_2", minimum=0.1, maximum=0.9, steps=9)
+
+    assert result.metric_name == "fbeta_2"
+    assert result.threshold <= 0.4
+
+
 def test_temperature_scaling_runs_and_returns_positive_temperature() -> None:
     targets = np.array([0, 0, 1, 1])
     logits = np.array([-2.0, -1.0, 1.0, 2.0])

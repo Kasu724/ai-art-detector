@@ -97,6 +97,7 @@ def tune_threshold(
         "precision": lambda y_true, y_pred: sk_metrics.precision_score(y_true, y_pred, zero_division=0),
         "recall": lambda y_true, y_pred: sk_metrics.recall_score(y_true, y_pred, zero_division=0),
         "f1": lambda y_true, y_pred: sk_metrics.f1_score(y_true, y_pred, zero_division=0),
+        "fbeta_2": lambda y_true, y_pred: sk_metrics.fbeta_score(y_true, y_pred, beta=2.0, zero_division=0),
         "balanced_accuracy": lambda y_true, y_pred: sk_metrics.balanced_accuracy_score(y_true, y_pred),
     }
     if metric_name not in scorer_map:

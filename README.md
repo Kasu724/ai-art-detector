@@ -78,6 +78,8 @@ The repository ships baseline, comparison, and smoke configs:
 | Real comparison | `configs/experiment_real_art_hf_improved.yaml` | Same-dataset comparison run with stronger augmentation | `efficientnet_b0` |
 | Anime moderation | `configs/experiment_anime_social_transfer.yaml` | Warm-started fine-tune for anime/cartoon-style moderation | `efficientnet_b0` |
 | Fanart moderation v2 | `configs/experiment_anime_fanart_v2_transfer.yaml` | Second-stage fine-tune for polished human fanart vs AI anime | `efficientnet_b0` |
+| Fanart moderation v3 | `configs/experiment_anime_fanart_v3_transfer.yaml` | Broader fanart moderation fine-tune with a wider AI-side source mix | `efficientnet_b0` |
+| Fanart moderation v4 | `configs/experiment_anime_fanart_v4_transfer.yaml` | AI-recall-focused fine-tune for stricter moderation | `efficientnet_b0` |
 | Smoke | `configs/experiment_smoke.yaml` | Fast CPU-only pipeline verification | `tiny_cnn` |
 
 ### Baseline experiment
@@ -377,6 +379,35 @@ python -m ai_art_detector.cli train --config configs/experiment_anime_fanart_v2_
 python -m ai_art_detector.cli evaluate --config configs/experiment_anime_fanart_v2_transfer.yaml --checkpoint artifacts/training/<run>/checkpoints/best.pt
 ```
 
+### Download the broader fanart v3 dataset
+
+This variant keeps the same curated human fanart source and broadens the AI side
+from two OpenNiji ranges to three:
+
+- `ShoukanLabs/OpenNiji-0_32237`
+- `ShoukanLabs/OpenNiji-32238_65000`
+- `ShoukanLabs/OpenNiji-65001_100000`
+
+```bash
+python -m ai_art_detector.cli download-anime-fanart-v3-dataset --output-dir data/raw/anime_fanart_filter_v3 --human-limit 3000 --ai-limit 3000
+python -m ai_art_detector.cli prepare-data --config configs/experiment_anime_fanart_v3_transfer.yaml
+python -m ai_art_detector.cli train --config configs/experiment_anime_fanart_v3_transfer.yaml
+python -m ai_art_detector.cli evaluate --config configs/experiment_anime_fanart_v3_transfer.yaml --checkpoint artifacts/training/<run>/checkpoints/best.pt
+```
+
+### Download the AI-recall-focused fanart v4 dataset
+
+This variant is intended for stricter moderation. It keeps the curated human
+fanart source, adds a real Ghibli-style human source to avoid treating the
+whole style as AI, and adds auxiliary AI-generated Ghibli-style sources.
+
+```bash
+python -m ai_art_detector.cli download-anime-fanart-v4-dataset --output-dir data/raw/anime_fanart_filter_v4 --human-limit 4000 --ai-limit 4200
+python -m ai_art_detector.cli prepare-data --config configs/experiment_anime_fanart_v4_transfer.yaml
+python -m ai_art_detector.cli train --config configs/experiment_anime_fanart_v4_transfer.yaml
+python -m ai_art_detector.cli evaluate --config configs/experiment_anime_fanart_v4_transfer.yaml --checkpoint artifacts/training/<run>/checkpoints/best.pt
+```
+
 ## Training Details
 
 ### Model support
@@ -477,9 +508,10 @@ Example response shape:
 ### Run locally
 
 ```bash
-set AIAD_CONFIG_PATH=configs/experiment_real_art_hf_improved.yaml
-set AIAD_MODEL_PATH=artifacts/training/<run>/checkpoints/best.pt
-set AIAD_METRICS_PATH=artifacts/evaluation/<eval_run>/metrics.json
+set AIAD_CONFIG_PATH=configs/experiment_anime_fanart_v4_transfer.yaml
+set AIAD_MODEL_PATH=artifacts/training/20260422_223526_anime_fanart_v4_recall_efficientnet_b0/checkpoints/best.pt
+set AIAD_METRICS_PATH=artifacts/evaluation/20260423_000248_anime_fanart_v4_recall_efficientnet_b0/metrics.json
+set AIAD_THRESHOLD=0.4
 python scripts/run_api.py
 ```
 
@@ -638,6 +670,73 @@ Suggested operating points on the held-out fanart split:
 - `0.7`: precision `0.9342`, recall `0.9467`
 - tuned `0.75`: precision `0.9400`, recall `0.9400`
 
+### Fanart-focused v3 fine-tune
+
+To reduce overfitting to a narrower AI source mix, the repo was then extended
+with a third fanart-stage dataset:
+
+- Human source: filtered `ShinoharaHare/Danbooru-2024-Filtered-1M`
+- AI sources: `ShoukanLabs/OpenNiji-0_32237`, `ShoukanLabs/OpenNiji-32238_65000`, `ShoukanLabs/OpenNiji-65001_100000`
+- Size: 6,000 images
+- Split: 4,200 train / 900 val / 900 test
+
+On the held-out v3 fanart-style test split:
+
+| Experiment | Accuracy | Precision | Recall | F1 | ROC-AUC | ECE | Threshold |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| v2 checkpoint on v3 split | 0.9533 | 0.9359 | 0.9733 | 0.9542 | 0.9884 | 0.0570 | 0.700 |
+| Fanart-focused v3 model | 0.9622 | 0.9622 | 0.9622 | 0.9622 | 0.9927 | 0.0192 | 0.575 |
+
+The operational tradeoff on the v3 split is more balanced than v2:
+
+- Human false positives dropped from `30 / 450` to `17 / 450`
+- AI misses rose from `12 / 450` to `17 / 450`
+- Calibration improved materially with ECE moving from `0.0570` to `0.0192`
+
+Suggested operating points on the held-out v3 fanart split:
+
+- `0.4`: precision `0.9464`, recall `0.9800`
+- tuned `0.575`: precision `0.9622`, recall `0.9622`
+- `0.7`: precision `0.9705`, recall `0.9489`
+
+For a platform workflow where false accusations on real fanart are especially
+costly, `v3` is the better default checkpoint. If you want a stricter first-pass
+AI catch rate, lower the threshold toward `0.4` or keep `v2` as a more aggressive
+recall-oriented screening model.
+
+### Fanart-focused v4 recall fine-tune
+
+After seeing that the balanced v3 model still let too many AI images through,
+the repo was extended with an AI-recall-focused v4 run:
+
+- Human sources: filtered `ShinoharaHare/Danbooru-2024-Filtered-1M`, plus real-labeled samples from `pulnip/ghibli-dataset`
+- AI sources: three OpenNiji ranges, non-real labels from `pulnip/ghibli-dataset`, and `filberthamijoyo/AI_Generated_Ghibli`
+- Size after validation: 8,271 images
+- Split: 5,791 train / 1,241 val / 1,239 test
+- One truncated image was detected and excluded during preparation
+
+On the held-out v4 fanart-style test split:
+
+| Experiment | Accuracy | Precision | Recall | F1 | ROC-AUC | ECE | Threshold |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| v3 checkpoint on v4 split | 0.8878 | 0.8463 | 0.9562 | 0.8979 | 0.9655 | 0.0391 | 0.425 |
+| Fanart-focused v4 model | 0.9475 | 0.9233 | 0.9797 | 0.9506 | 0.9911 | 0.0561 | 0.575 |
+
+The key moderation improvement is AI recall on the broader split:
+
+- v3 checkpoint: `28 / 639` AI samples missed as human
+- v4 checkpoint: `13 / 639` AI samples missed as human
+
+Suggested stricter operating points for v4:
+
+- tuned `0.575`: precision `0.9233`, recall `0.9797`, AI misses `13 / 639`
+- `0.4`: precision `0.8799`, recall `0.9859`, AI misses `9 / 639`
+- `0.3`: precision `0.8520`, recall `0.9906`, AI misses `6 / 639`
+
+For an art-sharing platform, `AIAD_THRESHOLD=0.4` is a more appropriate first-pass
+filter than the balanced threshold. It should be treated as a review/flagging
+threshold, not as proof that an image is AI-generated.
+
 The repo also ships:
 - a baseline experiment config
 - an improved experiment config
@@ -672,6 +771,8 @@ Current tests cover:
 make download-real-data
 make download-anime-data
 make download-anime-fanart-data
+make download-anime-fanart-v3-data
+make download-anime-fanart-v4-data
 make smoke-data
 make prepare-data CONFIG=configs/experiment.yaml
 make train CONFIG=configs/experiment.yaml
@@ -719,4 +820,4 @@ This project is intentionally honest about its limits.
 
 ## Status
 
-The repository is now a complete end-to-end project with a tested public-dataset adapter, trained real checkpoints, evaluation artifacts, ONNX export, a working FastAPI service, and a working Streamlit demo.
+The repository is now a complete end-to-end project with a tested public-dataset adapter, trained real checkpoints, anime- and fanart-focused transfer runs through `v3`, evaluation artifacts, ONNX export, a working FastAPI service, and a working Streamlit demo.

@@ -20,6 +20,7 @@ def test_load_real_dataset_experiment_configs() -> None:
     anime = load_experiment_config(PROJECT_ROOT / "configs/experiment_anime_social_transfer.yaml")
     fanart = load_experiment_config(PROJECT_ROOT / "configs/experiment_anime_fanart_v2_transfer.yaml")
     fanart_v3 = load_experiment_config(PROJECT_ROOT / "configs/experiment_anime_fanart_v3_transfer.yaml")
+    fanart_v4 = load_experiment_config(PROJECT_ROOT / "configs/experiment_anime_fanart_v4_transfer.yaml")
 
     assert baseline.project.experiment_name == "real_art_hf_resnet18"
     assert baseline.data.raw_dir == "data/raw/hf_art_images_ai_and_real"
@@ -40,3 +41,8 @@ def test_load_real_dataset_experiment_configs() -> None:
     assert fanart_v3.project.experiment_name == "anime_fanart_v3_transfer_efficientnet_b0"
     assert fanart_v3.data.raw_dir == "data/raw/anime_fanart_filter_v3"
     assert fanart_v3.model.checkpoint_path is not None
+
+    assert fanart_v4.project.experiment_name == "anime_fanart_v4_recall_efficientnet_b0"
+    assert fanart_v4.data.raw_dir == "data/raw/anime_fanart_filter_v4"
+    assert fanart_v4.eval.threshold_metric == "fbeta_2"
+    assert fanart_v4.model.checkpoint_path is not None

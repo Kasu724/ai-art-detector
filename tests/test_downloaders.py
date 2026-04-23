@@ -8,6 +8,7 @@ from PIL import Image
 from ai_art_detector.data.downloaders import (
     download_anime_fanart_dataset,
     download_anime_fanart_v3_dataset,
+    download_anime_fanart_v4_dataset,
     download_anime_social_dataset,
     download_real_art_dataset,
 )
@@ -119,7 +120,7 @@ def test_download_anime_fanart_dataset_uses_curated_human_source(monkeypatch, tm
     assert (output_dir / "danbooru_fanart" / "human" / "danbooru_fanart_000000.png").exists()
 
 
-def test_download_anime_fanart_v3_dataset_includes_ai_tagged_source(monkeypatch, tmp_path: Path) -> None:
+def test_download_anime_fanart_v3_dataset_includes_broader_ai_source_mix(monkeypatch, tmp_path: Path) -> None:
     def fake_load_dataset(dataset_id: str, streaming: bool = False):
         assert streaming is True
         if dataset_id == "ShinoharaHare/Danbooru-2024-Filtered-1M":
@@ -157,3 +158,50 @@ def test_download_anime_fanart_v3_dataset_includes_ai_tagged_source(monkeypatch,
     assert result["source_counts"]["open_niji_0_32237"] >= 1
     assert result["source_counts"]["open_niji_32238_65000"] >= 1
     assert (output_dir / "open_niji_32238_65000" / "ai").exists()
+
+
+def test_download_anime_fanart_v4_dataset_adds_auxiliary_ghibli_sources(monkeypatch, tmp_path: Path) -> None:
+    def fake_load_dataset(dataset_id: str, streaming: bool = False):
+        assert streaming is True
+        if dataset_id == "ShinoharaHare/Danbooru-2024-Filtered-1M":
+            class _DanbooruSplit:
+                def __iter__(self):
+                    human = {
+                        "rating": "s",
+                        "artist_tags": ["artist_name"],
+                        "character_tags": ["miku"],
+                        "copyright_tags": ["vocaloid"],
+                        "tags": ["1girl"],
+                        "general_tags": ["solo"],
+                        "meta_tags": ["highres"],
+                        "safe_check_score": {"label": ["polluted", "safe"], "score": [0.05, 0.95]},
+                        "completeness_score": {"label": ["polished", "rough", "monochrome"], "score": [0.97, 0.02, 0.01]},
+                        "aesthetic_score": 6.5,
+                    }
+                    for _ in range(8):
+                        yield {"image": Image.new("RGB", (8, 8), color=(255, 0, 0)), **human}
+
+            return {"train": _DanbooruSplit()}
+        if dataset_id == "pulnip/ghibli-dataset":
+            class _GhibliSplit:
+                def __iter__(self):
+                    yield {"image": Image.new("RGB", (8, 8), color=(255, 0, 0)), "label": "real"}
+                    yield {"image": Image.new("RGB", (8, 8), color=(0, 255, 0)), "label": "KappaNeuro"}
+                    yield {"image": Image.new("RGB", (8, 8), color=(0, 0, 255)), "label": "nitrosocke"}
+
+            return {"train": _GhibliSplit()}
+        return {"train": _DummyImageSplit()}
+
+    monkeypatch.setattr(
+        "ai_art_detector.data.downloaders._require_datasets",
+        lambda: fake_load_dataset,
+    )
+
+    output_dir = tmp_path / "raw" / "anime_fanart_filter_v4"
+    result = download_anime_fanart_v4_dataset(output_dir=output_dir, human_limit=5, ai_limit=8)
+
+    assert result["label_counts"]["human"] >= 5
+    assert result["label_counts"]["ai"] >= 6
+    assert result["source_counts"]["pulnip_ghibli_real"] == 1
+    assert result["source_counts"]["pulnip_ghibli_ai"] >= 1
+    assert (output_dir / "pulnip_ghibli_ai" / "ai").exists()

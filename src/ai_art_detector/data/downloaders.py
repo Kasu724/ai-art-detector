@@ -146,6 +146,14 @@ def _is_danbooru_ai_row(row: dict[str, Any]) -> bool:
     return True
 
 
+def _is_pulnip_ghibli_real_row(row: dict[str, Any]) -> bool:
+    return str(row.get("label", "")).lower() == "real"
+
+
+def _is_pulnip_ghibli_ai_row(row: dict[str, Any]) -> bool:
+    return str(row.get("label", "")).lower() not in {"", "real"}
+
+
 def _download_streaming_source(
     *,
     load_dataset,
@@ -161,14 +169,22 @@ def _download_streaming_source(
     if quota <= 0:
         return 0
 
+    label_dir = output_dir / source_name / label_name
+    existing_count = len(list(label_dir.glob(f"{source_name}_*.png"))) if label_dir.exists() else 0
+    if existing_count >= quota:
+        return existing_count
+
     dataset = load_dataset(dataset_id, streaming=True)
     if split not in dataset:
         raise ValueError(f"Split `{split}` not found in dataset `{dataset_id}`")
 
-    label_dir = output_dir / source_name / label_name
-    written = 0
+    written = existing_count
+    qualifying_seen = 0
     for row in dataset[split]:
         if row_filter is not None and not row_filter(row):
+            continue
+        if qualifying_seen < existing_count:
+            qualifying_seen += 1
             continue
         image = row.get(image_key)
         if image is None:
@@ -458,6 +474,148 @@ def download_anime_fanart_v3_dataset(
                     "ShoukanLabs/OpenNiji-0_32237",
                     "ShoukanLabs/OpenNiji-32238_65000",
                     "ShoukanLabs/OpenNiji-65001_100000",
+                ],
+            },
+        },
+    }
+    write_json(result, summary_path)
+    return result
+
+
+def download_anime_fanart_v4_dataset(
+    output_dir: str | Path,
+    human_limit: int = 4000,
+    ai_limit: int = 4500,
+) -> dict[str, Any]:
+    load_dataset = _require_datasets()
+    output_dir = resolve_path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    summary_path = output_dir.parent / f"{output_dir.name}_download_summary.json"
+
+    source_counts: dict[str, int] = {}
+    label_counts = {"human": 0, "ai": 0}
+
+    ghibli_human_quota = min(800, max(human_limit // 5, 0))
+    danbooru_quota = max(human_limit - ghibli_human_quota, 0)
+    human_sources = [
+        {
+            "dataset_id": "ShinoharaHare/Danbooru-2024-Filtered-1M",
+            "source_name": "danbooru_fanart",
+            "split": "train",
+            "image_key": "image",
+            "row_filter": _is_danbooru_fanart_row,
+            "quota": danbooru_quota,
+        },
+        {
+            "dataset_id": "pulnip/ghibli-dataset",
+            "source_name": "pulnip_ghibli_real",
+            "split": "train",
+            "image_key": "image",
+            "row_filter": _is_pulnip_ghibli_real_row,
+            "quota": ghibli_human_quota,
+        },
+    ]
+
+    ghibli_ai_quota = min(900, max(ai_limit // 5, 0))
+    generated_ghibli_quota = min(400, max(ai_limit // 12, 0))
+    open_niji_total = max(ai_limit - ghibli_ai_quota - generated_ghibli_quota, 0)
+    open_niji_quota = open_niji_total // 3
+    ai_sources = [
+        {
+            "dataset_id": "ShoukanLabs/OpenNiji-0_32237",
+            "source_name": "open_niji_0_32237",
+            "split": "train",
+            "image_key": "image",
+            "quota": open_niji_quota,
+        },
+        {
+            "dataset_id": "ShoukanLabs/OpenNiji-32238_65000",
+            "source_name": "open_niji_32238_65000",
+            "split": "train",
+            "image_key": "image",
+            "quota": open_niji_quota,
+        },
+        {
+            "dataset_id": "ShoukanLabs/OpenNiji-65001_100000",
+            "source_name": "open_niji_65001_100000",
+            "split": "train",
+            "image_key": "image",
+            "quota": open_niji_total - 2 * open_niji_quota,
+        },
+        {
+            "dataset_id": "pulnip/ghibli-dataset",
+            "source_name": "pulnip_ghibli_ai",
+            "split": "train",
+            "image_key": "image",
+            "row_filter": _is_pulnip_ghibli_ai_row,
+            "quota": ghibli_ai_quota,
+        },
+        {
+            "dataset_id": "filberthamijoyo/AI_Generated_Ghibli",
+            "source_name": "ai_generated_ghibli",
+            "split": "train",
+            "image_key": "image",
+            "quota": generated_ghibli_quota,
+        },
+    ]
+
+    for spec in human_sources:
+        written = _download_streaming_source(
+            load_dataset=load_dataset,
+            dataset_id=spec["dataset_id"],
+            split=spec["split"],
+            image_key=spec["image_key"],
+            output_dir=output_dir,
+            source_name=spec["source_name"],
+            label_name="human",
+            quota=spec["quota"],
+            row_filter=spec.get("row_filter"),
+        )
+        source_counts[spec["source_name"]] = written
+        label_counts["human"] += written
+
+    for spec in ai_sources:
+        written = _download_streaming_source(
+            load_dataset=load_dataset,
+            dataset_id=spec["dataset_id"],
+            split=spec["split"],
+            image_key=spec["image_key"],
+            output_dir=output_dir,
+            source_name=spec["source_name"],
+            label_name="ai",
+            quota=spec["quota"],
+            row_filter=spec.get("row_filter"),
+        )
+        source_counts[spec["source_name"]] = written
+        label_counts["ai"] += written
+
+    result = {
+        "dataset_family": "anime_fanart_filter_v4",
+        "output_dir": str(output_dir),
+        "summary_path": str(summary_path),
+        "num_downloaded": label_counts["human"] + label_counts["ai"],
+        "label_counts": label_counts,
+        "source_counts": source_counts,
+        "filters": {
+            "human_filters": {
+                "danbooru": {
+                    "rating": ["g", "s"],
+                    "exclude_tags": sorted(AI_TAG_EXCLUSIONS),
+                    "minimum_safe_score": 0.8,
+                    "minimum_polished_score": 0.85,
+                    "minimum_aesthetic_score": 5.0,
+                    "require_artist_tags": True,
+                    "require_character_or_copyright_tags": True,
+                },
+                "pulnip_ghibli": "label == real",
+            },
+            "ai_filters": {
+                "source_mix": [
+                    "ShoukanLabs/OpenNiji-0_32237",
+                    "ShoukanLabs/OpenNiji-32238_65000",
+                    "ShoukanLabs/OpenNiji-65001_100000",
+                    "pulnip/ghibli-dataset non-real labels",
+                    "filberthamijoyo/AI_Generated_Ghibli",
                 ],
             },
         },

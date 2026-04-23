@@ -47,6 +47,7 @@ def _scan_images(config: ExperimentConfig, raw_dir: Path) -> tuple[list[Manifest
         source, label_name = inferred
         try:
             with Image.open(file_path) as image:
+                image.load()
                 width, height = image.size
         except (UnidentifiedImageError, OSError) as exc:
             if config.data.skip_invalid_images:

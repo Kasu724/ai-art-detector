@@ -132,6 +132,29 @@ def build_parser() -> argparse.ArgumentParser:
         help="Total number of AI-generated anime images to materialize.",
     )
 
+    fanart_v4_download_parser = subparsers.add_parser(
+        "download-anime-fanart-v4-dataset",
+        help="Download a stricter fanart dataset with auxiliary AI-generated Ghibli sources.",
+    )
+    fanart_v4_download_parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path("data/raw/anime_fanart_filter_v4"),
+        help="Target directory for the AI-recall-focused fanart moderation dataset.",
+    )
+    fanart_v4_download_parser.add_argument(
+        "--human-limit",
+        type=int,
+        default=4000,
+        help="Total number of human-made fanart images to materialize.",
+    )
+    fanart_v4_download_parser.add_argument(
+        "--ai-limit",
+        type=int,
+        default=4500,
+        help="Total number of AI-generated anime images to materialize.",
+    )
+
     train_parser = subparsers.add_parser(
         "train",
         help="Train a model from the prepared manifest.",
@@ -280,6 +303,23 @@ def run_download_anime_fanart_v3_dataset(args: argparse.Namespace) -> int:
     return 0
 
 
+def run_download_anime_fanart_v4_dataset(args: argparse.Namespace) -> int:
+    from ai_art_detector.data.downloaders import download_anime_fanart_v4_dataset
+
+    result = download_anime_fanart_v4_dataset(
+        output_dir=args.output_dir,
+        human_limit=args.human_limit,
+        ai_limit=args.ai_limit,
+    )
+    print(f"Dataset family: {result['dataset_family']}")
+    print(f"Output directory: {result['output_dir']}")
+    print(f"Downloaded files: {result['num_downloaded']}")
+    print(f"Human images: {result['label_counts']['human']}")
+    print(f"AI images: {result['label_counts']['ai']}")
+    print(f"Summary path: {result['summary_path']}")
+    return 0
+
+
 def run_train(args: argparse.Namespace) -> int:
     from ai_art_detector.training.pipeline import train_model
 
@@ -359,6 +399,8 @@ def main() -> int:
         return run_download_anime_fanart_dataset(args)
     if args.command == "download-anime-fanart-v3-dataset":
         return run_download_anime_fanart_v3_dataset(args)
+    if args.command == "download-anime-fanart-v4-dataset":
+        return run_download_anime_fanart_v4_dataset(args)
     if args.command == "train":
         return run_train(args)
     if args.command == "evaluate":

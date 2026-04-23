@@ -3,7 +3,7 @@ project:
   experiment_name: anime_fanart_v3_transfer_efficientnet_b0
   description: >
     Broader anime moderation model with curated human fanart and a stronger
-    AI-side source mix including tagged Danbooru AI art.
+    AI-side OpenNiji source mix.
 
 defaults:
   data: anime_fanart_v3
@@ -17,5 +17,5 @@ model:
 
 notes: >
   Third-stage fine-tune that preserves the curated human fanart proxy while
-  broadening the AI class with Danbooru posts explicitly tagged as AI-generated
-  or AI-assisted.
+  broadening the AI class with a third OpenNiji slice to reduce overfitting to
+  a narrower two-source AI mix.
