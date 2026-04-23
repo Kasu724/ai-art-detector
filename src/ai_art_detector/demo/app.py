@@ -14,51 +14,31 @@ from ai_art_detector.utils.env import load_project_env
 load_project_env()
 
 
-THEMES = {
-    "Dark": {
-        "scheme": "dark",
-        "bg": "#131a22",
-        "surface": "#18222c",
-        "panel": "#202b36",
-        "panel_soft": "#26323e",
-        "field": "#151f29",
-        "text": "#e6edf3",
-        "muted": "#a7b4c1",
-        "border": "#344352",
-        "sidebar": "#161f28",
-        "track": "#2e3b48",
-        "ai": "#e06d5f",
-        "human": "#74c69d",
-        "review": "#d1a24a",
-        "shadow": "rgba(6, 10, 15, 0.28)",
-    },
-    "Light": {
-        "scheme": "light",
-        "bg": "#eef2f5",
-        "surface": "#f7f9fb",
-        "panel": "#f1f5f8",
-        "panel_soft": "#e7edf2",
-        "field": "#edf2f6",
-        "text": "#1e2a35",
-        "muted": "#526170",
-        "border": "#c8d2dc",
-        "sidebar": "#e7edf2",
-        "track": "#d6e0e8",
-        "ai": "#bd4d42",
-        "human": "#2f7a55",
-        "review": "#936719",
-        "shadow": "rgba(70, 82, 94, 0.14)",
-    },
+DARK_THEME = {
+    "scheme": "dark",
+    "bg": "#131a22",
+    "surface": "#18222c",
+    "panel": "#202b36",
+    "panel_soft": "#26323e",
+    "field": "#151f29",
+    "text": "#e6edf3",
+    "muted": "#a7b4c1",
+    "border": "#344352",
+    "sidebar": "#161f28",
+    "track": "#2e3b48",
+    "ai": "#e06d5f",
+    "human": "#74c69d",
+    "review": "#d1a24a",
+    "shadow": "rgba(6, 10, 15, 0.28)",
 }
 
 
-def _theme_css_variables(theme_name: str) -> str:
-    values = THEMES[theme_name]
-    return "\n".join(f"          --{key.replace('_', '-')}: {value};" for key, value in values.items())
+def _theme_css_variables() -> str:
+    return "\n".join(f"          --{key.replace('_', '-')}: {value};" for key, value in DARK_THEME.items())
 
 
-def _inject_styles(theme_name: str) -> None:
-    css_vars = _theme_css_variables(theme_name)
+def _inject_styles() -> None:
+    css_vars = _theme_css_variables()
     st.markdown(
         f"""
         <style>
@@ -102,16 +82,28 @@ def _inject_styles(theme_name: str) -> None:
           opacity: 1 !important;
           align-items: center;
           justify-content: center;
+          width: 2.1rem !important;
+          min-width: 2.1rem !important;
+          height: 2.1rem !important;
+          padding: 0 !important;
           color: var(--text) !important;
-          background: var(--panel) !important;
+          background: var(--panel-soft) !important;
           border: 1px solid var(--border) !important;
-          border-radius: 999px !important;
+          border-radius: 10px !important;
           box-shadow: 0 10px 24px var(--shadow);
           pointer-events: auto !important;
         }}
 
+        [data-testid="stExpandSidebarButton"]:hover,
+        [data-testid="stSidebarCollapseButton"] button:hover {{
+          background: var(--panel) !important;
+          border-color: var(--muted) !important;
+        }}
+
         [data-testid="stExpandSidebarButton"] *,
-        [data-testid="stExpandSidebarButton"] svg {{
+        [data-testid="stExpandSidebarButton"] svg,
+        [data-testid="stSidebarCollapseButton"] *,
+        [data-testid="stSidebarCollapseButton"] svg {{
           color: var(--text) !important;
           fill: var(--text) !important;
         }}
@@ -140,6 +132,22 @@ def _inject_styles(theme_name: str) -> None:
           color: var(--text);
         }}
 
+        code,
+        pre,
+        [data-testid="stMarkdownContainer"] code,
+        [data-testid="stCaptionContainer"] code {{
+          color: var(--text) !important;
+          background: var(--panel-soft) !important;
+          border: 1px solid var(--border);
+          border-radius: 6px;
+        }}
+
+        code,
+        [data-testid="stMarkdownContainer"] code,
+        [data-testid="stCaptionContainer"] code {{
+          padding: 0.08rem 0.28rem;
+        }}
+
         .block-container {{
           max-width: 1080px;
           padding-top: 0.85rem;
@@ -162,10 +170,57 @@ def _inject_styles(theme_name: str) -> None:
           overflow-y: auto !important;
           overflow-x: hidden !important;
           scrollbar-gutter: auto;
+          padding-top: 0 !important;
         }}
 
         section[data-testid="stSidebar"] > div {{
           max-height: 100vh;
+        }}
+
+        section[data-testid="stSidebar"] [data-testid="stSidebarHeader"] {{
+          height: 0 !important;
+          min-height: 0 !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          position: relative !important;
+          overflow: visible !important;
+          z-index: 5;
+        }}
+
+        section[data-testid="stSidebar"] [data-testid="stLogoSpacer"] {{
+          display: none !important;
+        }}
+
+        section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] {{
+          position: absolute !important;
+          top: 0.75rem !important;
+          right: 0.15rem !important;
+          z-index: 10;
+        }}
+
+        section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] button {{
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          width: 2.1rem !important;
+          min-width: 2.1rem !important;
+          height: 2.1rem !important;
+          padding: 0 !important;
+          color: var(--text) !important;
+          background: var(--panel-soft) !important;
+          border: 1px solid var(--border) !important;
+          border-radius: 10px !important;
+        }}
+
+        section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] {{
+          padding-top: 0.9rem !important;
+          padding-bottom: 1.5rem !important;
+          margin-top: 0 !important;
+        }}
+
+        section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] {{
+          padding-top: 0 !important;
+          margin-top: 0 !important;
         }}
 
         section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] {{
@@ -230,6 +285,7 @@ def _inject_styles(theme_name: str) -> None:
         div[data-testid="stFileUploaderDropzone"] {{
           background: var(--panel) !important;
           border-color: var(--border) !important;
+          color: var(--text) !important;
         }}
 
         div[data-testid="stFileUploaderDropzone"] * {{
@@ -239,6 +295,18 @@ def _inject_styles(theme_name: str) -> None:
         [data-testid="stFileUploader"] section,
         [data-testid="stFileUploader"] div {{
           border-color: var(--border) !important;
+        }}
+
+        div[data-testid="stFileUploaderDropzone"] small,
+        div[data-testid="stFileUploaderDropzone"] [data-testid="InputInstructions"],
+        div[data-testid="stFileUploaderDropzone"] [data-testid="InputInstructions"] * {{
+          color: var(--muted) !important;
+        }}
+
+        div[data-testid="stFileUploaderDropzone"] button {{
+          background: var(--field) !important;
+          border-color: var(--border) !important;
+          color: var(--text) !important;
         }}
 
         button {{
@@ -474,11 +542,6 @@ def _inject_styles(theme_name: str) -> None:
     )
 
 
-def _default_theme() -> str:
-    value = os.getenv("AIAD_DEMO_THEME", "Dark").strip().title()
-    return value if value in THEMES else "Dark"
-
-
 def _percent(value: float) -> str:
     return f"{value * 100:.1f}%"
 
@@ -535,12 +598,6 @@ def main() -> None:
 
     with st.sidebar:
         st.header("Settings")
-        theme = st.radio(
-            "Theme",
-            options=list(THEMES),
-            index=list(THEMES).index(_default_theme()),
-            horizontal=True,
-        )
         st.caption("Loaded from `.env`. Override here if needed.")
         config_path = st.text_input("Config path", value=os.getenv("AIAD_CONFIG_PATH", "configs/experiment.yaml"))
         checkpoint_path = st.text_input("Checkpoint path", value=os.getenv("AIAD_MODEL_PATH", ""))
@@ -549,7 +606,7 @@ def main() -> None:
         threshold_override = st.text_input("Threshold", value=os.getenv("AIAD_THRESHOLD", ""))
         device = st.text_input("Device", value=os.getenv("AIAD_DEVICE", "auto"))
 
-    _inject_styles(theme)
+    _inject_styles()
 
     st.markdown(
         """
