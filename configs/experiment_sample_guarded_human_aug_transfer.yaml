@@ -1,0 +1,26 @@
+project:
+  name: ai-art-detector
+  experiment_name: sample_guarded_human_aug_transfer_efficientnet_b0
+  description: >
+    Warm-start from the real-art checkpoint with extra human-side examples from
+    v4 fanart/Ghibli and Hemg. The sample folder is benchmark-only.
+
+defaults:
+  data: improved
+  model: improved
+  train: sample_guarded_human_aug_transfer
+  eval: default
+  runtime: default
+
+data:
+  raw_dir: data/raw
+  manifest_path: data/processed/sample_guarded_human_aug_manifest.csv
+  summary_path: data/processed/sample_guarded_human_aug_summary.json
+
+model:
+  checkpoint_path: artifacts/training/20260429_005539_sample_guarded_real_art_transfer_efficientnet_b0/checkpoints/best.pt
+
+notes: >
+  Continues from the real-art transfer checkpoint that caught all sample AI
+  images, then adds only non-sample human examples from v4 and Hemg to reduce
+  false positives.

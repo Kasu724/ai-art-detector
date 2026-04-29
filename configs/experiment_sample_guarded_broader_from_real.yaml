@@ -1,0 +1,26 @@
+project:
+  name: ai-art-detector
+  experiment_name: sample_guarded_broader_from_real_efficientnet_b0
+  description: >
+    Low-learning-rate transfer from the real-art checkpoint on a broader
+    manifest including Parvesh AI-vs-real images. The sample folder is
+    benchmark-only.
+
+defaults:
+  data: improved
+  model: improved
+  train: sample_guarded_broader_from_real
+  eval: default
+  runtime: default
+
+data:
+  raw_dir: data/raw
+  manifest_path: data/processed/sample_guarded_broader_manifest.csv
+  summary_path: data/processed/sample_guarded_broader_summary.json
+
+model:
+  checkpoint_path: artifacts/training/20260429_005539_sample_guarded_real_art_transfer_efficientnet_b0/checkpoints/best.pt
+
+notes: >
+  Adds a capped Parvesh AI-vs-real subset to the broad non-sample manifest and
+  fine-tunes all EfficientNet-B0 parameters for one conservative epoch.

@@ -235,6 +235,21 @@ python -m ai_art_detector.cli evaluate --config configs/experiment_real_art_hf_i
 python -m ai_art_detector.cli predict --config configs/experiment_real_art_hf_improved.yaml --checkpoint artifacts/training/<run>/checkpoints/best.pt --image path/to/image.png
 ```
 
+### Optional held-out sample benchmark
+
+If you keep a local `sample/` folder for benchmark-only images, do not prepare it
+as training data. Use the benchmark command after a checkpoint is created:
+
+```bash
+python -m ai_art_detector.cli benchmark-sample \
+  --config configs/experiment_sample_guarded_broader_from_real.yaml \
+  --checkpoint artifacts/training/<run>/checkpoints/best.pt \
+  --sample-dir sample
+```
+
+Expected labels are inferred from filenames or parent folders beginning with
+`ai`, `fake`, `generated`, `real`, or `human`.
+
 ### Optional smoke-only pipeline check
 
 This synthetic dataset is only for pipeline validation. It is not a real AI-art benchmark.

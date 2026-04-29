@@ -1,0 +1,26 @@
+project:
+  name: ai-art-detector
+  experiment_name: sample_guarded_broad_from_real_efficientnet_b0
+  description: >
+    Broad mixed-manifest fine-tune from the real-art transfer checkpoint. The
+    sample folder is benchmark-only.
+
+defaults:
+  data: improved
+  model: improved
+  train: sample_guarded_broad_from_real
+  eval: default
+  runtime: default
+
+data:
+  raw_dir: data/raw
+  manifest_path: data/processed/sample_guarded_broad_manifest.csv
+  summary_path: data/processed/sample_guarded_broad_summary.json
+
+model:
+  checkpoint_path: artifacts/training/20260429_005539_sample_guarded_real_art_transfer_efficientnet_b0/checkpoints/best.pt
+
+notes: >
+  Starts from the real-art checkpoint and fine-tunes all parameters on the
+  broad manifest containing real-art, v4 fanart/Ghibli, and Hemg examples. It
+  excludes sample/ from all data inputs.

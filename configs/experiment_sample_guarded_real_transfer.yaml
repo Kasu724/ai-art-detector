@@ -1,0 +1,26 @@
+project:
+  name: ai-art-detector
+  experiment_name: sample_guarded_real_art_transfer_efficientnet_b0
+  description: >
+    Warm-started real-art transfer run. The sample folder is reserved for
+    post-training benchmarking only and is not used by this config.
+
+defaults:
+  data: improved
+  model: improved
+  train: sample_guarded_real_transfer
+  eval: default
+  runtime: default
+
+data:
+  raw_dir: data/raw/hf_art_images_ai_and_real
+  manifest_path: data/processed/real_art_hf_manifest.csv
+  summary_path: data/processed/real_art_hf_preparation_summary.json
+
+model:
+  checkpoint_path: artifacts/training/20260422_223526_anime_fanart_v4_recall_efficientnet_b0/checkpoints/best.pt
+
+notes: >
+  Fine-tunes the existing v4 detector on the public Hugging Face real-art
+  corpus. The held-out sample folder must only be evaluated with
+  benchmark-sample after a checkpoint is created.

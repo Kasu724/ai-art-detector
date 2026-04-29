@@ -1,0 +1,25 @@
+project:
+  name: ai-art-detector
+  experiment_name: sample_guarded_mixed_imagenet_head_efficientnet_b0
+  description: >
+    ImageNet-initialized head-only model trained on the mixed public manifest.
+    The sample folder is benchmark-only.
+
+defaults:
+  data: improved
+  model: improved
+  train: sample_guarded_mixed_imagenet_head
+  eval: default
+  runtime: default
+
+data:
+  raw_dir: data/raw
+  manifest_path: data/processed/sample_guarded_mixed_manifest.csv
+  summary_path: data/processed/sample_guarded_mixed_summary.json
+
+model:
+  freeze_backbone: true
+
+notes: >
+  Trains only the classifier head on top of ImageNet EfficientNet-B0 features
+  using the mixed manifest. It excludes sample/ from all data inputs.

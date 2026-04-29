@@ -215,6 +215,17 @@ def build_parser() -> argparse.ArgumentParser:
     compare_parser.add_argument("--metrics", type=Path, nargs="+", required=True)
     compare_parser.add_argument("--output", type=Path, required=True)
 
+    benchmark_parser = subparsers.add_parser(
+        "benchmark-sample",
+        help="Benchmark a held-out folder without adding it to the training manifest.",
+    )
+    benchmark_parser.add_argument("--sample-dir", type=Path, default=Path("sample"))
+    benchmark_parser.add_argument("--checkpoint", type=Path, default=None, help="Path to a PyTorch checkpoint.")
+    benchmark_parser.add_argument("--config", type=Path, default=Path("configs/experiment.yaml"))
+    benchmark_parser.add_argument("--metrics-path", type=Path, default=None, help="Optional evaluation metrics JSON.")
+    benchmark_parser.add_argument("--onnx-path", type=Path, default=None, help="Optional ONNX model path.")
+    benchmark_parser.add_argument("--threshold", type=float, default=None, help="Optional threshold override.")
+
     return parser
 
 
@@ -385,6 +396,26 @@ def run_compare_runs(args: argparse.Namespace) -> int:
     return 0
 
 
+def run_benchmark_sample(args: argparse.Namespace) -> int:
+    from ai_art_detector.evaluation.sample_benchmark import benchmark_sample_folder
+
+    config = load_experiment_config(args.config)
+    configure_logging(config.runtime.log_level)
+    result = benchmark_sample_folder(
+        config=config,
+        sample_dir=args.sample_dir,
+        checkpoint_path=args.checkpoint,
+        metrics_path=args.metrics_path,
+        onnx_path=args.onnx_path,
+        threshold=args.threshold,
+    )
+    print(f"Benchmark run directory: {result.run_dir}")
+    print(f"Accuracy: {result.correct}/{result.total} ({result.accuracy:.4f})")
+    print(f"Summary: {result.summary_path}")
+    print(f"Predictions: {result.predictions_path}")
+    return 0
+
+
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
@@ -411,6 +442,8 @@ def main() -> int:
         return run_export_onnx(args)
     if args.command == "compare-runs":
         return run_compare_runs(args)
+    if args.command == "benchmark-sample":
+        return run_benchmark_sample(args)
 
     parser.error(f"Unknown command: {args.command}")
     return 2

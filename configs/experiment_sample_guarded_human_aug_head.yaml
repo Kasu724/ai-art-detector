@@ -1,0 +1,26 @@
+project:
+  name: ai-art-detector
+  experiment_name: sample_guarded_human_aug_head_efficientnet_b0
+  description: >
+    Head-only human-augmented update from the real-art transfer checkpoint.
+    The sample folder is benchmark-only.
+
+defaults:
+  data: improved
+  model: improved
+  train: sample_guarded_human_aug_head
+  eval: default
+  runtime: default
+
+data:
+  raw_dir: data/raw
+  manifest_path: data/processed/sample_guarded_human_aug_manifest.csv
+  summary_path: data/processed/sample_guarded_human_aug_summary.json
+
+model:
+  checkpoint_path: artifacts/training/20260429_005539_sample_guarded_real_art_transfer_efficientnet_b0/checkpoints/best.pt
+  freeze_backbone: true
+
+notes: >
+  Updates only the classifier head from the real-art checkpoint using extra
+  non-sample human examples. It excludes sample/ from all data inputs.

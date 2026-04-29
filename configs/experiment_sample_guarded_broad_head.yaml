@@ -1,0 +1,27 @@
+project:
+  name: ai-art-detector
+  experiment_name: sample_guarded_broad_head_efficientnet_b0
+  description: >
+    Broad mixed-manifest head-only update using real-art, v4 fanart/Ghibli, and
+    Hemg AI-vs-real images. The sample folder is benchmark-only.
+
+defaults:
+  data: improved
+  model: improved
+  train: sample_guarded_broad_head
+  eval: default
+  runtime: default
+
+data:
+  raw_dir: data/raw
+  manifest_path: data/processed/sample_guarded_broad_manifest.csv
+  summary_path: data/processed/sample_guarded_broad_summary.json
+
+model:
+  checkpoint_path: artifacts/training/20260429_020259_sample_guarded_mixed_imagenet_head_efficientnet_b0/checkpoints/best.pt
+  freeze_backbone: true
+
+notes: >
+  Continues from the best head-only mixed candidate and trains only the
+  classifier head on the broad manifest. It excludes sample/ from all data
+  inputs.

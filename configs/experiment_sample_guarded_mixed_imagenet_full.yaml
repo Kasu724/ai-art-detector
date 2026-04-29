@@ -1,0 +1,22 @@
+project:
+  name: ai-art-detector
+  experiment_name: sample_guarded_mixed_imagenet_full_efficientnet_b0
+  description: >
+    ImageNet-initialized full EfficientNet-B0 fine-tune on the mixed public
+    manifest. The sample folder is benchmark-only.
+
+defaults:
+  data: improved
+  model: improved
+  train: sample_guarded_mixed_imagenet_full
+  eval: default
+  runtime: default
+
+data:
+  raw_dir: data/raw
+  manifest_path: data/processed/sample_guarded_mixed_manifest.csv
+  summary_path: data/processed/sample_guarded_mixed_summary.json
+
+notes: >
+  Fine-tunes all EfficientNet-B0 parameters from ImageNet weights on the mixed
+  manifest. It excludes sample/ from all data inputs.
